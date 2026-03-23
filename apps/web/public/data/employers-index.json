@@ -1,0 +1,22 @@
+[
+  { "id": "university-of-toronto", "name": "University of Toronto", "sector": "Universities", "regionId": "3520", "headcount": 12450, "medianSalary": 142300 },
+  { "id": "ontario-power-generation", "name": "Ontario Power Generation", "sector": "Ontario Power Generation", "regionId": "3520", "headcount": 10007, "medianSalary": 138500 },
+  { "id": "city-of-toronto", "name": "City of Toronto", "sector": "Municipalities", "regionId": "3520", "headcount": 9850, "medianSalary": 118200 },
+  { "id": "toronto-district-school-board", "name": "Toronto District School Board", "sector": "School Boards", "regionId": "3520", "headcount": 8900, "medianSalary": 106500 },
+  { "id": "hydro-one", "name": "Hydro One", "sector": "Hydro One", "regionId": "3520", "headcount": 6850, "medianSalary": 132400 },
+  { "id": "sunnybrook-health-sciences", "name": "Sunnybrook Health Sciences Centre", "sector": "Hospitals", "regionId": "3520", "headcount": 5200, "medianSalary": 124100 },
+  { "id": "university-health-network", "name": "University Health Network", "sector": "Hospitals", "regionId": "3520", "headcount": 6800, "medianSalary": 131500 },
+  { "id": "york-region-district-school-board", "name": "York Region District School Board", "sector": "School Boards", "regionId": "3519", "headcount": 5100, "medianSalary": 107200 },
+  { "id": "toronto-police-services-board", "name": "Toronto Police Services Board", "sector": "Municipalities", "regionId": "3520", "headcount": 4950, "medianSalary": 115800 },
+  { "id": "queens-university", "name": "Queen's University", "sector": "Universities", "regionId": "3510", "headcount": 3200, "medianSalary": 135400 },
+  { "id": "university-of-ottawa", "name": "University of Ottawa", "sector": "Universities", "regionId": "3506", "headcount": 4100, "medianSalary": 138900 },
+  { "id": "city-of-ottawa", "name": "City of Ottawa", "sector": "Municipalities", "regionId": "3506", "headcount": 4800, "medianSalary": 116500 },
+  { "id": "hamilton-health-sciences", "name": "Hamilton Health Sciences", "sector": "Hospitals", "regionId": "3525", "headcount": 4200, "medianSalary": 122800 },
+  { "id": "peel-district-school-board", "name": "Peel District School Board", "sector": "School Boards", "regionId": "3521", "headcount": 5800, "medianSalary": 105900 },
+  { "id": "western-university", "name": "Western University", "sector": "Universities", "regionId": "3539", "headcount": 3100, "medianSalary": 133200 },
+  { "id": "mcmaster-university", "name": "McMaster University", "sector": "Universities", "regionId": "3525", "headcount": 3400, "medianSalary": 136700 },
+  { "id": "metrolinx", "name": "Metrolinx", "sector": "Crown Agencies", "regionId": "3520", "headcount": 3800, "medianSalary": 121400 },
+  { "id": "thunder-bay-regional-health", "name": "Thunder Bay Regional Health Sciences Centre", "sector": "Hospitals", "regionId": "3558", "headcount": 1850, "medianSalary": 118300 },
+  { "id": "lakehead-university", "name": "Lakehead University", "sector": "Universities", "regionId": "3558", "headcount": 680, "medianSalary": 128400 },
+  { "id": "city-of-thunder-bay", "name": "City of Thunder Bay", "sector": "Municipalities", "regionId": "3558", "headcount": 520, "medianSalary": 112100 }
+]

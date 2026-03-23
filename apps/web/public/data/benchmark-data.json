@@ -1,0 +1,165 @@
+{
+  "roles": {
+    "registered-nurse": {
+      "name": "Registered Nurse",
+      "category": "Healthcare",
+      "totalRecords": 12450,
+      "percentiles": { "p25": 104800, "p50": 112300, "p75": 124600, "p90": 138900 },
+      "distribution": [
+        { "bucket": 100000, "count": 2890 },
+        { "bucket": 105000, "count": 3210 },
+        { "bucket": 110000, "count": 2650 },
+        { "bucket": 115000, "count": 1480 },
+        { "bucket": 120000, "count": 890 },
+        { "bucket": 125000, "count": 520 },
+        { "bucket": 130000, "count": 380 },
+        { "bucket": 135000, "count": 210 },
+        { "bucket": 140000, "count": 120 },
+        { "bucket": 145000, "count": 60 },
+        { "bucket": 150000, "count": 40 }
+      ],
+      "byInstitutionType": [
+        { "type": "Teaching Hospital", "median": 118400, "count": 4200 },
+        { "type": "Regional Hospital", "median": 112100, "count": 5100 },
+        { "type": "Community Health", "median": 106800, "count": 2150 },
+        { "type": "Long-Term Care", "median": 104200, "count": 1000 }
+      ],
+      "byRegion": [
+        { "regionId": "3520", "regionName": "Toronto", "median": 116500, "count": 3800 },
+        { "regionId": "3506", "regionName": "Ottawa", "median": 114200, "count": 1650 },
+        { "regionId": "3525", "regionName": "Hamilton", "median": 113800, "count": 1200 },
+        { "regionId": "3558", "regionName": "Thunder Bay", "median": 108500, "count": 480 },
+        { "regionId": "3539", "regionName": "London", "median": 111900, "count": 890 },
+        { "regionId": "3543", "regionName": "Waterloo", "median": 110400, "count": 720 }
+      ],
+      "trend": [
+        { "year": 2019, "median": 102400, "medianAdjusted": 112800, "count": 8200 },
+        { "year": 2020, "median": 104100, "medianAdjusted": 113500, "count": 9100 },
+        { "year": 2021, "median": 106500, "medianAdjusted": 113200, "count": 9800 },
+        { "year": 2022, "median": 108200, "medianAdjusted": 112100, "count": 10500 },
+        { "year": 2023, "median": 110400, "medianAdjusted": 112500, "count": 11200 },
+        { "year": 2024, "median": 112300, "medianAdjusted": 112300, "count": 12450 }
+      ]
+    },
+    "teacher": {
+      "name": "Teacher",
+      "category": "Education",
+      "totalRecords": 45200,
+      "percentiles": { "p25": 101200, "p50": 105800, "p75": 108900, "p90": 112400 },
+      "distribution": [
+        { "bucket": 100000, "count": 15800 },
+        { "bucket": 102000, "count": 8900 },
+        { "bucket": 104000, "count": 6200 },
+        { "bucket": 106000, "count": 5100 },
+        { "bucket": 108000, "count": 4200 },
+        { "bucket": 110000, "count": 2800 },
+        { "bucket": 112000, "count": 1200 },
+        { "bucket": 114000, "count": 600 },
+        { "bucket": 116000, "count": 250 },
+        { "bucket": 118000, "count": 150 }
+      ],
+      "byInstitutionType": [
+        { "type": "Public School Board", "median": 105200, "count": 28500 },
+        { "type": "Catholic School Board", "median": 106100, "count": 12800 },
+        { "type": "French School Board", "median": 104800, "count": 3900 }
+      ],
+      "byRegion": [
+        { "regionId": "3520", "regionName": "Toronto", "median": 106800, "count": 12500 },
+        { "regionId": "3521", "regionName": "Peel", "median": 105900, "count": 5800 },
+        { "regionId": "3519", "regionName": "York", "median": 106200, "count": 5100 },
+        { "regionId": "3506", "regionName": "Ottawa", "median": 105400, "count": 3200 },
+        { "regionId": "3525", "regionName": "Hamilton", "median": 104800, "count": 2100 },
+        { "regionId": "3558", "regionName": "Thunder Bay", "median": 103200, "count": 680 }
+      ],
+      "trend": [
+        { "year": 2019, "median": 100200, "medianAdjusted": 110500, "count": 12800 },
+        { "year": 2020, "median": 101400, "medianAdjusted": 110600, "count": 18200 },
+        { "year": 2021, "median": 102800, "medianAdjusted": 109400, "count": 24500 },
+        { "year": 2022, "median": 103900, "medianAdjusted": 107700, "count": 31200 },
+        { "year": 2023, "median": 104800, "medianAdjusted": 106900, "count": 38400 },
+        { "year": 2024, "median": 105800, "medianAdjusted": 105800, "count": 45200 }
+      ]
+    },
+    "professor": {
+      "name": "Professor",
+      "category": "Education",
+      "totalRecords": 8900,
+      "percentiles": { "p25": 128500, "p50": 152400, "p75": 178600, "p90": 205800 },
+      "distribution": [
+        { "bucket": 100000, "count": 320 },
+        { "bucket": 110000, "count": 480 },
+        { "bucket": 120000, "count": 680 },
+        { "bucket": 130000, "count": 920 },
+        { "bucket": 140000, "count": 1100 },
+        { "bucket": 150000, "count": 1350 },
+        { "bucket": 160000, "count": 1200 },
+        { "bucket": 170000, "count": 980 },
+        { "bucket": 180000, "count": 720 },
+        { "bucket": 190000, "count": 480 },
+        { "bucket": 200000, "count": 340 },
+        { "bucket": 210000, "count": 200 },
+        { "bucket": 220000, "count": 130 }
+      ],
+      "byInstitutionType": [
+        { "type": "Research University", "median": 162400, "count": 5200 },
+        { "type": "Comprehensive University", "median": 148600, "count": 2400 },
+        { "type": "Primarily Undergraduate", "median": 138200, "count": 1300 }
+      ],
+      "byRegion": [
+        { "regionId": "3520", "regionName": "Toronto", "median": 168500, "count": 3200 },
+        { "regionId": "3506", "regionName": "Ottawa", "median": 158200, "count": 1400 },
+        { "regionId": "3525", "regionName": "Hamilton", "median": 155800, "count": 680 },
+        { "regionId": "3539", "regionName": "London", "median": 152100, "count": 520 },
+        { "regionId": "3558", "regionName": "Thunder Bay", "median": 142300, "count": 280 },
+        { "regionId": "3510", "regionName": "Kingston", "median": 148900, "count": 380 }
+      ],
+      "trend": [
+        { "year": 2019, "median": 138200, "medianAdjusted": 152400, "count": 7800 },
+        { "year": 2020, "median": 141500, "medianAdjusted": 154200, "count": 8000 },
+        { "year": 2021, "median": 144200, "medianAdjusted": 153500, "count": 8200 },
+        { "year": 2022, "median": 147100, "medianAdjusted": 152500, "count": 8400 },
+        { "year": 2023, "median": 149800, "medianAdjusted": 152800, "count": 8650 },
+        { "year": 2024, "median": 152400, "medianAdjusted": 152400, "count": 8900 }
+      ]
+    },
+    "police-constable": {
+      "name": "Police Constable",
+      "category": "Public Safety",
+      "totalRecords": 15800,
+      "percentiles": { "p25": 102400, "p50": 108600, "p75": 118200, "p90": 132500 },
+      "distribution": [
+        { "bucket": 100000, "count": 4200 },
+        { "bucket": 105000, "count": 3800 },
+        { "bucket": 110000, "count": 2900 },
+        { "bucket": 115000, "count": 1800 },
+        { "bucket": 120000, "count": 1200 },
+        { "bucket": 125000, "count": 800 },
+        { "bucket": 130000, "count": 500 },
+        { "bucket": 135000, "count": 320 },
+        { "bucket": 140000, "count": 180 },
+        { "bucket": 145000, "count": 100 }
+      ],
+      "byInstitutionType": [
+        { "type": "Municipal Police", "median": 110200, "count": 12400 },
+        { "type": "OPP", "median": 106800, "count": 2800 },
+        { "type": "Special Constable", "median": 103200, "count": 600 }
+      ],
+      "byRegion": [
+        { "regionId": "3520", "regionName": "Toronto", "median": 112500, "count": 4950 },
+        { "regionId": "3521", "regionName": "Peel", "median": 109800, "count": 2100 },
+        { "regionId": "3519", "regionName": "York", "median": 110100, "count": 1800 },
+        { "regionId": "3506", "regionName": "Ottawa", "median": 108200, "count": 1500 },
+        { "regionId": "3525", "regionName": "Hamilton", "median": 107500, "count": 900 },
+        { "regionId": "3558", "regionName": "Thunder Bay", "median": 104800, "count": 380 }
+      ],
+      "trend": [
+        { "year": 2019, "median": 100800, "medianAdjusted": 111200, "count": 13200 },
+        { "year": 2020, "median": 102400, "medianAdjusted": 111700, "count": 13800 },
+        { "year": 2021, "median": 104200, "medianAdjusted": 110900, "count": 14200 },
+        { "year": 2022, "median": 105800, "medianAdjusted": 109700, "count": 14800 },
+        { "year": 2023, "median": 107200, "medianAdjusted": 109300, "count": 15300 },
+        { "year": 2024, "median": 108600, "medianAdjusted": 108600, "count": 15800 }
+      ]
+    }
+  }
+}

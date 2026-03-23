@@ -1,0 +1,17 @@
+[
+  { "name": "Ontario Public Service", "slug": "ontario-public-service", "sector": "Government of Ontario", "count": 42100, "medianSalary": 123400 },
+  { "name": "Toronto District School Board", "slug": "toronto-district-school-board", "sector": "School Boards", "count": 18200, "medianSalary": 111600 },
+  { "name": "City of Toronto", "slug": "city-of-toronto", "sector": "Municipalities", "count": 16800, "medianSalary": 119200 },
+  { "name": "University of Toronto", "slug": "university-of-toronto", "sector": "Universities", "count": 14500, "medianSalary": 132800 },
+  { "name": "University Health Network", "slug": "university-health-network", "sector": "Hospitals", "count": 12300, "medianSalary": 118400 },
+  { "name": "Sunnybrook Health Sciences Centre", "slug": "sunnybrook-health-sciences-centre", "sector": "Hospitals", "count": 9800, "medianSalary": 116200 },
+  { "name": "Hamilton Health Sciences", "slug": "hamilton-health-sciences", "sector": "Hospitals", "count": 8900, "medianSalary": 114800 },
+  { "name": "Hydro One Inc.", "slug": "hydro-one-inc", "sector": "Hydro One", "count": 8200, "medianSalary": 135800 },
+  { "name": "York Region District School Board", "slug": "york-region-district-school-board", "sector": "School Boards", "count": 7600, "medianSalary": 113200 },
+  { "name": "Ottawa-Carleton District School Board", "slug": "ottawa-carleton-district-school-board", "sector": "School Boards", "count": 7100, "medianSalary": 112400 },
+  { "name": "Toronto Catholic District School Board", "slug": "toronto-catholic-district-school-board", "sector": "School Boards", "count": 6800, "medianSalary": 111800 },
+  { "name": "Peel District School Board", "slug": "peel-district-school-board", "sector": "School Boards", "count": 6500, "medianSalary": 112600 },
+  { "name": "The Hospital for Sick Children", "slug": "the-hospital-for-sick-children", "sector": "Hospitals", "count": 6200, "medianSalary": 121600 },
+  { "name": "Ontario Power Generation Inc.", "slug": "ontario-power-generation-inc", "sector": "Ontario Power Generation", "count": 6100, "medianSalary": 138200 },
+  { "name": "London Health Sciences Centre", "slug": "london-health-sciences-centre", "sector": "Hospitals", "count": 5800, "medianSalary": 113600 }
+]

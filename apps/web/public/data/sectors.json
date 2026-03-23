@@ -1,0 +1,21 @@
+[
+  { "id": "crown-agencies", "name": "Crown Agencies", "count": 28450, "medianSalary": 125600, "totalComp": 4200000000 },
+  { "id": "government-of-ontario", "name": "Government of Ontario", "count": 42100, "medianSalary": 121300, "totalComp": 5800000000 },
+  { "id": "hospitals", "name": "Hospitals", "count": 51200, "medianSalary": 119800, "totalComp": 7100000000 },
+  { "id": "hydro-one", "name": "Hydro One", "count": 6850, "medianSalary": 132400, "totalComp": 1050000000 },
+  { "id": "municipalities", "name": "Municipalities", "count": 35600, "medianSalary": 116200, "totalComp": 4700000000 },
+  { "id": "ontario-power-generation", "name": "Ontario Power Generation", "count": 10007, "medianSalary": 138500, "totalComp": 1680000000 },
+  { "id": "school-boards", "name": "School Boards", "count": 98500, "medianSalary": 108900, "totalComp": 11600000000 },
+  { "id": "universities", "name": "Universities", "count": 45800, "medianSalary": 128700, "totalComp": 6900000000 },
+  { "id": "colleges", "name": "Colleges", "count": 18200, "medianSalary": 115400, "totalComp": 2400000000 },
+  { "id": "childrens-aid-societies", "name": "Children's Aid Societies", "count": 3200, "medianSalary": 110500, "totalComp": 380000000 },
+  { "id": "community-colleges", "name": "Community Colleges", "count": 4800, "medianSalary": 113200, "totalComp": 590000000 },
+  { "id": "electricity-sector", "name": "Electricity Sector", "count": 8900, "medianSalary": 134600, "totalComp": 1350000000 },
+  { "id": "legislative-assembly", "name": "Legislative Assembly", "count": 450, "medianSalary": 128900, "totalComp": 62000000 },
+  { "id": "public-health", "name": "Public Health", "count": 5200, "medianSalary": 117300, "totalComp": 680000000 },
+  { "id": "school-authorities", "name": "School Authorities", "count": 1200, "medianSalary": 107800, "totalComp": 142000000 },
+  { "id": "transfer-payment-recipients", "name": "Transfer Payment Recipients", "count": 4600, "medianSalary": 112100, "totalComp": 560000000 },
+  { "id": "judiciary", "name": "Judiciary", "count": 780, "medianSalary": 285000, "totalComp": 245000000 },
+  { "id": "boards-commissions", "name": "Boards and Commissions", "count": 2800, "medianSalary": 119500, "totalComp": 370000000 },
+  { "id": "other-public-sector", "name": "Other Public Sector", "count": 8936, "medianSalary": 114200, "totalComp": 1171000000 }
+]

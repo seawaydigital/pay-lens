@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm Sunshine Theme */
+    --background: 48 100% 96%; /* cream-50 #fffbeb */
+    --foreground: 21 90% 14%; /* amber-900 #78350f */
+
+    --card: 33 100% 96%; /* cream-100 #fff7ed */
+    --card-foreground: 21 90% 14%;
+
+    --popover: 48 100% 96%;
+    --popover-foreground: 21 90% 14%;
+
+    --primary: 32 95% 44%; /* amber-600 #d97706 */
+    --primary-foreground: 48 100% 96%;
+
+    --secondary: 33 100% 96%; /* cream-100 */
+    --secondary-foreground: 21 78% 15%; /* amber-800 #92400e */
+
+    --muted: 40 100% 76%; /* amber-200 #fde68a */
+    --muted-foreground: 21 78% 15%;
+
+    --accent: 40 100% 76%;
+    --accent-foreground: 21 90% 14%;
+
+    --destructive: 0 72% 51%; /* red #dc2626 */
+    --destructive-foreground: 48 100% 96%;
+
+    --border: 40 100% 76%; /* amber-200 */
+    --input: 40 100% 76%;
+    --ring: 32 95% 44%; /* amber-600 */
+
+    --radius: 0.5rem;
+
+    --chart-1: 32 95% 44%; /* amber-600 */
+    --chart-2: 160 84% 39%; /* success green */
+    --chart-3: 32 95% 33%; /* amber-700 */
+    --chart-4: 0 72% 51%; /* danger red */
+    --chart-5: 40 96% 54%; /* amber-400 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}

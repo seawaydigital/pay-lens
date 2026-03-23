@@ -1,0 +1,15 @@
+{
+  "totalEmployees": 377412,
+  "totalPay": 50300000000,
+  "medianSalary": 118200,
+  "yoyGrowth": 25.6,
+  "latestYear": 2024,
+  "byYear": [
+    { "year": 2019, "count": 166395, "totalCompensation": 23100000000, "medianSalary": 112400 },
+    { "year": 2020, "count": 205059, "totalCompensation": 29400000000, "medianSalary": 113100 },
+    { "year": 2021, "count": 232023, "totalCompensation": 33600000000, "medianSalary": 114800 },
+    { "year": 2022, "count": 261874, "totalCompensation": 38200000000, "medianSalary": 115500 },
+    { "year": 2023, "count": 300488, "totalCompensation": 44100000000, "medianSalary": 116900 },
+    { "year": 2024, "count": 377412, "totalCompensation": 50300000000, "medianSalary": 118200 }
+  ]
+}

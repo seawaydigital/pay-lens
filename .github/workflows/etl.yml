@@ -1,0 +1,28 @@
+name: ETL Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: 'Years to process (e.g., 2019-2024)'
+        default: '2019-2024'
+  schedule:
+    - cron: '0 6 1 4 *' # April 1 annually
+
+jobs:
+  run-etl:
+    runs-on: ubuntu-latest
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: cd packages/etl && uv sync
+      - run: cd packages/etl && uv run python -m etl.runner run --years "${{ inputs.years || '1996-2024' }}"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: etl-output
+          path: packages/etl/data/output/

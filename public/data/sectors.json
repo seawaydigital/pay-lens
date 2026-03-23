@@ -1,0 +1,16 @@
+[
+  { "name": "Hospitals", "count": 89200, "medianSalary": 115400 },
+  { "name": "School Boards", "count": 72100, "medianSalary": 112800 },
+  { "name": "Government of Ontario", "count": 52300, "medianSalary": 124600 },
+  { "name": "Universities", "count": 43800, "medianSalary": 128900 },
+  { "name": "Municipalities", "count": 38600, "medianSalary": 118200 },
+  { "name": "Colleges", "count": 24500, "medianSalary": 116700 },
+  { "name": "Crown Agencies", "count": 18900, "medianSalary": 121300 },
+  { "name": "Ontario Provincial Police", "count": 12400, "medianSalary": 119500 },
+  { "name": "Hydro One", "count": 8200, "medianSalary": 135800 },
+  { "name": "Ontario Power Generation", "count": 6100, "medianSalary": 138200 },
+  { "name": "Transit Authorities", "count": 4800, "medianSalary": 117600 },
+  { "name": "Electricity Distributors", "count": 3200, "medianSalary": 126400 },
+  { "name": "Children's Aid Societies", "count": 2100, "medianSalary": 108900 },
+  { "name": "Other Public Sector Employers", "count": 1212, "medianSalary": 114200 }
+]

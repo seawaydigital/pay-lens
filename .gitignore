@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Build
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Turbo
+.turbo/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Data (large files)
+packages/etl/data/
+*.parquet
+
+# Pagefind output
+apps/web/out/pagefind/
+
+# Superpowers brainstorm
+.superpowers/
+
+# Claude Code local artifacts (keep launch.json)
+.claude/settings.*
+.claude/projects/
