@@ -8,6 +8,7 @@ import { ArrowUpDown, Layers, Users, DollarSign, TrendingUp } from 'lucide-react
 import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { getSectors } from '@/lib/db';
 
 const SectorVelocityStream = dynamic(
   () =>
@@ -34,10 +35,17 @@ export default function SectorsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    fetch('/data/sectors.json')
-      .then((res) => res.json())
-      .then((data: Sector[]) => {
-        setSectors(data);
+    getSectors()
+      .then((data) => {
+        setSectors(
+          data.map((s) => ({
+            id: s.id,
+            name: s.name,
+            count: s.employee_count,
+            medianSalary: s.median_salary,
+            totalComp: s.total_compensation,
+          }))
+        );
         setLoading(false);
       })
       .catch(() => setLoading(false));

@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { EmployerCard } from '@/components/employer/employer-card';
 import { formatNumber } from '@/lib/utils';
+import { getEmployers } from '@/lib/db';
 
 interface Employer {
   id: string;
@@ -28,10 +29,18 @@ export default function EmployersPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    fetch('/data/employers-index.json')
-      .then((res) => res.json())
-      .then((data: Employer[]) => {
-        setEmployers(data);
+    getEmployers()
+      .then((data) => {
+        setEmployers(
+          data.map((e) => ({
+            id: e.id,
+            name: e.name,
+            sector: e.sector,
+            regionId: e.region_id,
+            headcount: e.headcount,
+            medianSalary: e.median_salary,
+          }))
+        );
         setLoading(false);
       })
       .catch(() => setLoading(false));

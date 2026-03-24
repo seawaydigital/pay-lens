@@ -7,6 +7,7 @@ import { StatCard } from '@/components/layout/stat-card';
 import { DataCaveatBanner } from '@/components/layout/data-caveat-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber, formatCurrency, formatPercent } from '@/lib/utils';
+import { getStatsSummary, getSectors, getEmployers, getHistoricalSeries } from '@/lib/db';
 
 // Dynamic imports for Recharts-based components (no SSR)
 const SectorDonut = dynamic(
@@ -29,18 +30,12 @@ const AmIOnTheList = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-[200px] w-full rounded-lg" /> }
 );
 
-interface StatsSummary {
+interface DashboardStats {
   totalEmployees: number;
   totalCompensation: number;
   medianSalary: number;
   yoyGrowth: number;
   latestYear: number;
-  byYear: Array<{
-    year: number;
-    count: number;
-    totalComp: number;
-    median: number;
-  }>;
 }
 
 interface SectorData {
@@ -59,6 +54,13 @@ interface EmployerData {
   medianSalary: number;
 }
 
+interface YearData {
+  year: number;
+  count: number;
+  totalComp: number;
+  median: number;
+}
+
 function StatCardSkeleton() {
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm">
@@ -70,29 +72,60 @@ function StatCardSkeleton() {
 }
 
 export function DashboardClient() {
-  const [stats, setStats] = useState<StatsSummary | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [sectors, setSectors] = useState<SectorData[] | null>(null);
   const [employers, setEmployers] = useState<EmployerData[] | null>(null);
+  const [byYear, setByYear] = useState<YearData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [statsRes, sectorsRes, employersRes] = await Promise.all([
-          fetch('/data/stats-summary.json'),
-          fetch('/data/sectors.json'),
-          fetch('/data/employers-index.json'),
+        const [summary, sectorsData, employersData, historicalData] = await Promise.all([
+          getStatsSummary(),
+          getSectors(),
+          getEmployers(),
+          getHistoricalSeries(),
         ]);
 
-        const [statsData, sectorsData, employersData] = await Promise.all([
-          statsRes.json() as Promise<StatsSummary>,
-          sectorsRes.json() as Promise<SectorData[]>,
-          employersRes.json() as Promise<EmployerData[]>,
-        ]);
+        if (summary) {
+          setStats({
+            totalEmployees: summary.total_records,
+            totalCompensation: summary.total_compensation,
+            medianSalary: summary.median_salary,
+            yoyGrowth: summary.yoy_growth,
+            latestYear: summary.latest_year,
+          });
+        }
 
-        setStats(statsData);
-        setSectors(sectorsData);
-        setEmployers(employersData);
+        setSectors(
+          sectorsData.map((s) => ({
+            id: s.id,
+            name: s.name,
+            count: s.employee_count,
+            medianSalary: s.median_salary,
+            totalComp: s.total_compensation,
+          }))
+        );
+
+        setEmployers(
+          employersData.map((e) => ({
+            id: e.id,
+            name: e.name,
+            sector: e.sector,
+            headcount: e.headcount,
+            medianSalary: e.median_salary,
+          }))
+        );
+
+        setByYear(
+          historicalData.map((h) => ({
+            year: h.year,
+            count: h.total_employees,
+            totalComp: h.total_compensation,
+            median: h.median_salary,
+          }))
+        );
       } catch (error) {
         console.error('Failed to load dashboard data:', error);
       } finally {
@@ -159,8 +192,8 @@ export function DashboardClient() {
 
       {/* Row 3: YoY Growth Trend */}
       <YoYSparkline
-        data={stats?.byYear ?? []}
-        isLoading={isLoading || !stats}
+        data={byYear}
+        isLoading={isLoading}
       />
 
       {/* Row 4: Am I on the List? */}

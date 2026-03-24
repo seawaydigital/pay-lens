@@ -16,6 +16,7 @@ import {
 import { PageHeader } from '@/components/layout/page-header';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { getAnomalies } from '@/lib/db';
 
 const AnomalyScatterChart = dynamic(
   () =>
@@ -77,10 +78,24 @@ export default function AnomaliesPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    fetch('/data/anomalies.json')
-      .then((res) => res.json())
-      .then((data: Anomaly[]) => {
-        setAnomalies(data);
+    getAnomalies()
+      .then((data) => {
+        setAnomalies(
+          data.map((a) => ({
+            id: a.id,
+            name: a.name,
+            employer: a.employer,
+            title: a.title,
+            salaryPrev: a.salary_prev ?? 0,
+            salaryCurr: a.salary_curr,
+            yearPrev: a.year_prev ?? 0,
+            yearCurr: a.year_curr,
+            changePercent: a.change_percent ?? 0,
+            changeAmount: a.change_amount ?? 0,
+            flag: a.flag,
+            possibleReason: a.possible_reason ?? '',
+          }))
+        );
         setLoading(false);
       })
       .catch(() => setLoading(false));

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Input } from '@/components/ui/input';
@@ -23,31 +23,48 @@ import {
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { exportToCsv } from '@/lib/csv-export';
 import { ExportButton } from '@/components/shared/export-button';
-
-interface Sector {
-  id: string;
-  name: string;
-}
+import { searchDisclosures, getSectors } from '@/lib/db';
+import type { Disclosure as DbDisclosure, Sector } from '@/lib/supabase';
 
 const YEARS = [2024, 2023, 2022, 2021, 2020, 2019];
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 const SALARY_RANGES = [
-  { label: 'All salaries', value: 'all', min: 0, max: Infinity },
-  { label: 'Under $120K', value: 'under-120k', min: 0, max: 120000 },
+  { label: 'All salaries', value: 'all', min: undefined, max: undefined },
+  { label: 'Under $120K', value: 'under-120k', min: undefined, max: 120000 },
   { label: '$120K - $150K', value: '120k-150k', min: 120000, max: 150000 },
   { label: '$150K - $200K', value: '150k-200k', min: 150000, max: 200000 },
   { label: '$200K - $300K', value: '200k-300k', min: 200000, max: 300000 },
-  { label: '$300K+', value: '300k-plus', min: 300000, max: Infinity },
+  { label: '$300K+', value: '300k-plus', min: 300000, max: undefined },
 ];
+
+function mapDisclosure(d: DbDisclosure): Disclosure {
+  return {
+    id: d.id,
+    year: d.year,
+    firstName: d.first_name,
+    lastName: d.last_name,
+    jobTitle: d.job_title,
+    employer: d.employer,
+    employerId: d.employer_id ?? '',
+    sector: d.sector,
+    salaryPaid: d.salary_paid,
+    taxableBenefits: d.taxable_benefits,
+    totalCompensation: d.total_compensation,
+    regionId: d.region_id ?? '',
+    regionName: d.region_name ?? '',
+  };
+}
 
 export default function SearchPage() {
   const [disclosures, setDisclosures] = useState<Disclosure[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [total, setTotal] = useState(0);
+  const [sectorOptions, setSectorOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter state
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState('all');
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedSalaryRange, setSelectedSalaryRange] = useState('all');
@@ -59,101 +76,94 @@ export default function SearchPage() {
   // Pagination
   const [page, setPage] = useState(1);
 
-  // Load data on mount
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [disclosuresRes, sectorsRes] = await Promise.all([
-          fetch('/data/sample-disclosures.json'),
-          fetch('/data/sectors.json'),
-        ]);
-        const disclosuresData = await disclosuresRes.json();
-        const sectorsData = await sectorsRes.json();
-        setDisclosures(disclosuresData);
-        setSectors(sectorsData);
-      } catch (err) {
-        console.error('Failed to load data:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
+  // Debounce query input (300 ms)
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleQueryChange = useCallback((value: string) => {
+    setQuery(value);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedQuery(value);
+    }, 300);
   }, []);
 
-  // Filter and sort
-  const filteredResults = useMemo(() => {
-    let results = [...disclosures];
+  // Load sectors once on mount
+  useEffect(() => {
+    getSectors()
+      .then((sectors: Sector[]) => {
+        setSectorOptions(sectors.map((s) => s.name).sort());
+      })
+      .catch((err) => console.error('Failed to load sectors:', err));
+  }, []);
 
-    // Text search
-    if (query.trim()) {
-      const q = query.toLowerCase().trim();
-      results = results.filter(
-        (d) =>
-          `${d.firstName} ${d.lastName}`.toLowerCase().includes(q) ||
-          d.lastName.toLowerCase().includes(q) ||
-          d.firstName.toLowerCase().includes(q) ||
-          d.jobTitle.toLowerCase().includes(q) ||
-          d.employer.toLowerCase().includes(q)
-      );
-    }
+  // Fetch disclosures whenever search params change
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
 
-    // Sector filter
-    if (selectedSector !== 'all') {
-      results = results.filter(
-        (d) => d.sector.toLowerCase() === selectedSector.toLowerCase()
-      );
-    }
+    const salaryRange = SALARY_RANGES.find((r) => r.value === selectedSalaryRange);
 
-    // Year filter
-    if (selectedYear !== 'all') {
-      results = results.filter((d) => d.year === parseInt(selectedYear, 10));
-    }
+    // searchDisclosures always orders by salary_paid desc in the DB layer.
+    // For other sort fields we apply a lightweight client-side sort over the
+    // returned page (25 rows), keeping the server doing the heavy lifting.
+    void searchDisclosures({
+      query: debouncedQuery,
+      sector: selectedSector !== 'all' ? selectedSector : undefined,
+      year: selectedYear !== 'all' ? parseInt(selectedYear, 10) : undefined,
+      minSalary: salaryRange?.min,
+      maxSalary: salaryRange?.max,
+      page,
+      pageSize: PAGE_SIZE,
+    })
+      .then(({ data, total: serverTotal }) => {
+        if (cancelled) return;
 
-    // Salary range filter
-    if (selectedSalaryRange !== 'all') {
-      const range = SALARY_RANGES.find((r) => r.value === selectedSalaryRange);
-      if (range) {
-        results = results.filter(
-          (d) => d.salaryPaid >= range.min && d.salaryPaid < range.max
-        );
-      }
-    }
+        let mapped = data.map(mapDisclosure);
 
-    // Sort
-    results.sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case 'name':
-          cmp = `${a.lastName}, ${a.firstName}`.localeCompare(
-            `${b.lastName}, ${b.firstName}`
-          );
-          break;
-        case 'employer':
-          cmp = a.employer.localeCompare(b.employer);
-          break;
-        case 'salary':
-          cmp = a.salaryPaid - b.salaryPaid;
-          break;
-        case 'total':
-          cmp = a.totalCompensation - b.totalCompensation;
-          break;
-      }
-      return sortDirection === 'asc' ? cmp : -cmp;
-    });
+        // Apply client-side sort for fields other than salary (DB always sorts by salary_paid)
+        if (sortField !== 'salary') {
+          mapped = [...mapped].sort((a, b) => {
+            let cmp = 0;
+            switch (sortField) {
+              case 'name':
+                cmp = `${a.lastName}, ${a.firstName}`.localeCompare(
+                  `${b.lastName}, ${b.firstName}`
+                );
+                break;
+              case 'employer':
+                cmp = a.employer.localeCompare(b.employer);
+                break;
+              case 'total':
+                cmp = a.totalCompensation - b.totalCompensation;
+                break;
+            }
+            return sortDirection === 'asc' ? cmp : -cmp;
+          });
+        } else if (sortDirection === 'asc') {
+          // DB returns desc by default; reverse for asc
+          mapped = [...mapped].reverse();
+        }
 
-    return results;
-  }, [disclosures, query, selectedSector, selectedYear, selectedSalaryRange, sortField, sortDirection]);
+        setDisclosures(mapped);
+        setTotal(serverTotal);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load disclosures:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  // Stats
-  const totalCompensation = useMemo(
-    () => filteredResults.reduce((sum, d) => sum + d.totalCompensation, 0),
-    [filteredResults]
-  );
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery, selectedSector, selectedYear, selectedSalaryRange, sortField, sortDirection, page]);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [query, selectedSector, selectedYear, selectedSalaryRange]);
+  }, [debouncedQuery, selectedSector, selectedYear, selectedSalaryRange]);
+
+  const totalCompensation = disclosures.reduce((sum, d) => sum + d.totalCompensation, 0);
 
   const handleSort = useCallback(
     (field: SortField) => {
@@ -171,7 +181,7 @@ export default function SearchPage() {
     exportToCsv({
       filename: 'sunshine-list-export.csv',
       headers: ['Name', 'Employer', 'Title', 'Salary', 'Year'],
-      rows: filteredResults.map((d) => [
+      rows: disclosures.map((d) => [
         `${d.firstName} ${d.lastName}`,
         d.employer,
         d.jobTitle,
@@ -179,7 +189,7 @@ export default function SearchPage() {
         d.year,
       ]),
     });
-  }, [filteredResults]);
+  }, [disclosures]);
 
   const hasActiveFilters =
     selectedSector !== 'all' ||
@@ -189,23 +199,11 @@ export default function SearchPage() {
 
   const clearFilters = () => {
     setQuery('');
+    setDebouncedQuery('');
     setSelectedSector('all');
     setSelectedYear('all');
     setSelectedSalaryRange('all');
   };
-
-  // Unique sectors from the data (for matching against actual disclosure values)
-  const disclosureSectors = useMemo(() => {
-    const unique = Array.from(new Set(disclosures.map((d) => d.sector))).sort();
-    return unique;
-  }, [disclosures]);
-
-  // Merge sector names: use sectors.json names but also include any sectors from disclosures
-  const sectorOptions = useMemo(() => {
-    const sectorNames = new Set(sectors.map((s) => s.name));
-    disclosureSectors.forEach((s) => sectorNames.add(s));
-    return Array.from(sectorNames).sort();
-  }, [sectors, disclosureSectors]);
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -223,7 +221,7 @@ export default function SearchPage() {
             type="search"
             placeholder="Search by name, employer, or title..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -298,28 +296,28 @@ export default function SearchPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-sunshine-600">Results:</span>
               <Badge variant="secondary" className="font-mono">
-                {formatNumber(filteredResults.length)}
+                {formatNumber(total)}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-sunshine-600">
-                Total compensation:
+                Page compensation:
               </span>
               <span className="text-sm font-semibold text-sunshine-900">
                 {formatCurrency(totalCompensation)}
               </span>
             </div>
-            {filteredResults.length > 0 && (
+            {disclosures.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-sunshine-600">Average:</span>
+                <span className="text-sm text-sunshine-600">Page average:</span>
                 <span className="text-sm font-semibold text-sunshine-900">
                   {formatCurrency(
-                    Math.round(totalCompensation / filteredResults.length)
+                    Math.round(totalCompensation / disclosures.length)
                   )}
                 </span>
               </div>
             )}
-            {filteredResults.length > 0 && (
+            {disclosures.length > 0 && (
               <div className="ml-auto">
                 <ExportButton onClick={handleExportCsv} />
               </div>
@@ -336,9 +334,10 @@ export default function SearchPage() {
           </div>
         ) : (
           <SearchResultsTable
-            results={filteredResults}
+            results={disclosures}
             page={page}
             pageSize={PAGE_SIZE}
+            total={total}
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={handleSort}

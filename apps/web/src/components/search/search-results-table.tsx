@@ -29,6 +29,9 @@ interface SearchResultsTableProps {
   results: Disclosure[];
   page: number;
   pageSize: number;
+  /** Total number of matching records across all pages (for server-side pagination).
+   *  Defaults to results.length when not provided (client-side pagination). */
+  total?: number;
   sortField: SortField;
   sortDirection: SortDirection;
   onSort: (field: SortField) => void;
@@ -58,14 +61,19 @@ export function SearchResultsTable({
   results,
   page,
   pageSize,
+  total,
   sortField,
   sortDirection,
   onSort,
   onPageChange,
 }: SearchResultsTableProps) {
-  const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
+  // When `total` is provided (server-side pagination) the results array already
+  // contains exactly one page of data — do not slice it again.
+  const serverPaginated = total !== undefined;
+  const effectiveTotal = serverPaginated ? total : results.length;
+  const totalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
   const start = (page - 1) * pageSize;
-  const paginatedResults = results.slice(start, start + pageSize);
+  const paginatedResults = serverPaginated ? results : results.slice(start, start + pageSize);
 
   if (results.length === 0) {
     return (
@@ -163,8 +171,8 @@ export function SearchResultsTable({
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between">
           <p className="text-sm text-sunshine-600">
-            Showing {start + 1}&ndash;{Math.min(start + pageSize, results.length)}{' '}
-            of {results.length} results
+            Showing {start + 1}&ndash;{Math.min(start + pageSize, effectiveTotal)}{' '}
+            of {effectiveTotal} results
           </p>
           <div className="flex items-center gap-2">
             <Button

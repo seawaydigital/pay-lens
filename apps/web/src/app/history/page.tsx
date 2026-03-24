@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatNumber, formatPercent, cn } from '@/lib/utils';
 import { CPI_TABLE } from '@/lib/data/cpi-table';
 import { SUNSHINE_THRESHOLD, FIRST_YEAR, LATEST_YEAR } from '@/lib/constants';
+import { getHistoricalSeries } from '@/lib/db';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -122,10 +123,23 @@ export default function HistoryPage() {
   const [adjusted, setAdjusted] = useState(false);
 
   useEffect(() => {
-    fetch('/data/historical-series.json')
-      .then((r) => r.json())
-      .then((d: YearRecord[]) => {
-        setData(d);
+    getHistoricalSeries()
+      .then((rows) => {
+        setData(
+          rows.map((r) => ({
+            year: r.year,
+            totalEmployees: r.total_employees,
+            totalCompensation: r.total_compensation,
+            medianSalary: r.median_salary,
+            averageSalary: r.average_salary,
+            p25Salary: r.p25_salary,
+            p75Salary: r.p75_salary,
+            p90Salary: r.p90_salary,
+            threshold: r.threshold,
+            cpiIndex: r.cpi_index,
+            sectors: r.sectors,
+          }))
+        );
         setLoading(false);
       })
       .catch(() => setLoading(false));

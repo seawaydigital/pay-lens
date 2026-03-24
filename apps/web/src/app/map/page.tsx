@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import type { RegionDetail } from '@/components/map/region-detail-panel';
 import { RegionDetailPanel } from '@/components/map/region-detail-panel';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
+import { getRegions, getSectors } from '@/lib/db';
 
 const PayMap = dynamic(
   () => import('@/components/map/pay-map').then((mod) => mod.PayMap),
@@ -38,14 +39,23 @@ export default function MapPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [regionsRes, sectorsRes] = await Promise.all([
-          fetch('/data/region-salaries.json'),
-          fetch('/data/sectors.json'),
+        const [regionsData, sectorsData] = await Promise.all([
+          getRegions(),
+          getSectors(),
         ]);
-        const regionsData = await regionsRes.json();
-        const sectorsData = await sectorsRes.json();
-        setRegions(regionsData);
-        setSectors(sectorsData);
+        setRegions(
+          regionsData.map((r) => ({
+            regionId: r.region_id,
+            name: r.name,
+            medianSalary: r.median_salary,
+            count: r.employee_count,
+            lat: r.lat,
+            lng: r.lng,
+          }))
+        );
+        setSectors(
+          sectorsData.map((s) => ({ id: s.id, name: s.name }))
+        );
       } catch (err) {
         console.error('Failed to load map data:', err);
       } finally {
