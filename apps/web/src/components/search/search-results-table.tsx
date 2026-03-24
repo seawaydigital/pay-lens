@@ -139,7 +139,7 @@ export function SearchResultsTable({
               >
                 <td className="px-4 py-3">
                   <Link
-                    href={`/person/${d.id}/`}
+                    href={`/person?id=${d.id}`}
                     className="font-medium text-sunshine-700 hover:text-sunshine-900 hover:underline"
                   >
                     {d.lastName}, {d.firstName}
