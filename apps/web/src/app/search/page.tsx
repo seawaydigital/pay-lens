@@ -21,6 +21,8 @@ import {
   type SortDirection,
 } from '@/components/search/search-results-table';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { exportToCsv } from '@/lib/csv-export';
+import { ExportButton } from '@/components/shared/export-button';
 
 interface Sector {
   id: string;
@@ -165,6 +167,20 @@ export default function SearchPage() {
     [sortField]
   );
 
+  const handleExportCsv = useCallback(() => {
+    exportToCsv({
+      filename: 'sunshine-list-export.csv',
+      headers: ['Name', 'Employer', 'Title', 'Salary', 'Year'],
+      rows: filteredResults.map((d) => [
+        `${d.firstName} ${d.lastName}`,
+        d.employer,
+        d.jobTitle,
+        d.salaryPaid,
+        d.year,
+      ]),
+    });
+  }, [filteredResults]);
+
   const hasActiveFilters =
     selectedSector !== 'all' ||
     selectedYear !== 'all' ||
@@ -301,6 +317,11 @@ export default function SearchPage() {
                     Math.round(totalCompensation / filteredResults.length)
                   )}
                 </span>
+              </div>
+            )}
+            {filteredResults.length > 0 && (
+              <div className="ml-auto">
+                <ExportButton onClick={handleExportCsv} />
               </div>
             )}
           </CardContent>

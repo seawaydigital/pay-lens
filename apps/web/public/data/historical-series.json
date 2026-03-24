@@ -1,0 +1,582 @@
+[
+  {
+    "year": 1996,
+    "totalEmployees": 4584,
+    "totalCompensation": 538000000,
+    "medianSalary": 108500,
+    "averageSalary": 117400,
+    "p25Salary": 103200,
+    "p75Salary": 128500,
+    "p90Salary": 158000,
+    "threshold": 100000,
+    "cpiIndex": 86.8,
+    "sectors": {
+      "Hospitals": { "count": 1200, "median": 112000 },
+      "Universities": { "count": 800, "median": 118000 },
+      "School Boards": { "count": 600, "median": 105000 },
+      "Municipalities": { "count": 900, "median": 108000 },
+      "Crown Agencies": { "count": 500, "median": 115000 },
+      "Government": { "count": 584, "median": 110000 }
+    }
+  },
+  {
+    "year": 1997,
+    "totalEmployees": 5238,
+    "totalCompensation": 622000000,
+    "medianSalary": 110200,
+    "averageSalary": 118800,
+    "p25Salary": 104100,
+    "p75Salary": 130800,
+    "p90Salary": 161000,
+    "threshold": 100000,
+    "cpiIndex": 88.2,
+    "sectors": {
+      "Hospitals": { "count": 1380, "median": 113800 },
+      "Universities": { "count": 920, "median": 120200 },
+      "School Boards": { "count": 700, "median": 106500 },
+      "Municipalities": { "count": 1020, "median": 109800 },
+      "Crown Agencies": { "count": 580, "median": 116800 },
+      "Government": { "count": 638, "median": 112000 }
+    }
+  },
+  {
+    "year": 1998,
+    "totalEmployees": 6389,
+    "totalCompensation": 755000000,
+    "medianSalary": 111500,
+    "averageSalary": 118200,
+    "p25Salary": 104800,
+    "p75Salary": 131400,
+    "p90Salary": 162500,
+    "threshold": 100000,
+    "cpiIndex": 89.0,
+    "sectors": {
+      "Hospitals": { "count": 1680, "median": 115200 },
+      "Universities": { "count": 1080, "median": 121500 },
+      "School Boards": { "count": 860, "median": 107200 },
+      "Municipalities": { "count": 1200, "median": 110500 },
+      "Crown Agencies": { "count": 700, "median": 118000 },
+      "Government": { "count": 869, "median": 113500 }
+    }
+  },
+  {
+    "year": 1999,
+    "totalEmployees": 7872,
+    "totalCompensation": 940000000,
+    "medianSalary": 112800,
+    "averageSalary": 119400,
+    "p25Salary": 105200,
+    "p75Salary": 133200,
+    "p90Salary": 164800,
+    "threshold": 100000,
+    "cpiIndex": 90.6,
+    "sectors": {
+      "Hospitals": { "count": 2060, "median": 116500 },
+      "Universities": { "count": 1340, "median": 123200 },
+      "School Boards": { "count": 1060, "median": 108200 },
+      "Municipalities": { "count": 1480, "median": 111800 },
+      "Crown Agencies": { "count": 910, "median": 119500 },
+      "Government": { "count": 1022, "median": 114500 }
+    }
+  },
+  {
+    "year": 2000,
+    "totalEmployees": 9968,
+    "totalCompensation": 1200000000,
+    "medianSalary": 114200,
+    "averageSalary": 120400,
+    "p25Salary": 105800,
+    "p75Salary": 135000,
+    "p90Salary": 167000,
+    "threshold": 100000,
+    "cpiIndex": 93.0,
+    "sectors": {
+      "Hospitals": { "count": 2620, "median": 118000 },
+      "Universities": { "count": 1700, "median": 125000 },
+      "School Boards": { "count": 1340, "median": 109500 },
+      "Municipalities": { "count": 1870, "median": 113200 },
+      "Crown Agencies": { "count": 1180, "median": 121200 },
+      "Government": { "count": 1258, "median": 116000 }
+    }
+  },
+  {
+    "year": 2001,
+    "totalEmployees": 12368,
+    "totalCompensation": 1510000000,
+    "medianSalary": 115800,
+    "averageSalary": 122100,
+    "p25Salary": 106400,
+    "p75Salary": 137200,
+    "p90Salary": 170000,
+    "threshold": 100000,
+    "cpiIndex": 95.3,
+    "sectors": {
+      "Hospitals": { "count": 3240, "median": 119500 },
+      "Universities": { "count": 2100, "median": 127000 },
+      "School Boards": { "count": 1680, "median": 110800 },
+      "Municipalities": { "count": 2300, "median": 114800 },
+      "Crown Agencies": { "count": 1480, "median": 123000 },
+      "Government": { "count": 1568, "median": 117500 }
+    }
+  },
+  {
+    "year": 2002,
+    "totalEmployees": 14532,
+    "totalCompensation": 1800000000,
+    "medianSalary": 117200,
+    "averageSalary": 123800,
+    "p25Salary": 107000,
+    "p75Salary": 139400,
+    "p90Salary": 173000,
+    "threshold": 100000,
+    "cpiIndex": 97.6,
+    "sectors": {
+      "Hospitals": { "count": 3810, "median": 121200 },
+      "Universities": { "count": 2460, "median": 129000 },
+      "School Boards": { "count": 1980, "median": 112200 },
+      "Municipalities": { "count": 2700, "median": 116500 },
+      "Crown Agencies": { "count": 1720, "median": 125000 },
+      "Government": { "count": 1862, "median": 119000 }
+    }
+  },
+  {
+    "year": 2003,
+    "totalEmployees": 20812,
+    "totalCompensation": 2610000000,
+    "medianSalary": 118900,
+    "averageSalary": 125400,
+    "p25Salary": 107800,
+    "p75Salary": 141800,
+    "p90Salary": 176500,
+    "threshold": 100000,
+    "cpiIndex": 100.3,
+    "sectors": {
+      "Hospitals": { "count": 5450, "median": 123000 },
+      "Universities": { "count": 3540, "median": 131500 },
+      "School Boards": { "count": 2820, "median": 113800 },
+      "Municipalities": { "count": 3860, "median": 118200 },
+      "Crown Agencies": { "count": 2460, "median": 127000 },
+      "Government": { "count": 2682, "median": 121000 }
+    }
+  },
+  {
+    "year": 2004,
+    "totalEmployees": 24428,
+    "totalCompensation": 3100000000,
+    "medianSalary": 120500,
+    "averageSalary": 126900,
+    "p25Salary": 108500,
+    "p75Salary": 143800,
+    "p90Salary": 179500,
+    "threshold": 100000,
+    "cpiIndex": 102.2,
+    "sectors": {
+      "Hospitals": { "count": 6400, "median": 124800 },
+      "Universities": { "count": 4140, "median": 133500 },
+      "School Boards": { "count": 3320, "median": 115200 },
+      "Municipalities": { "count": 4540, "median": 119800 },
+      "Crown Agencies": { "count": 2900, "median": 129000 },
+      "Government": { "count": 3128, "median": 123000 }
+    }
+  },
+  {
+    "year": 2005,
+    "totalEmployees": 29568,
+    "totalCompensation": 3800000000,
+    "medianSalary": 122200,
+    "averageSalary": 128500,
+    "p25Salary": 109200,
+    "p75Salary": 146000,
+    "p90Salary": 183000,
+    "threshold": 100000,
+    "cpiIndex": 104.5,
+    "sectors": {
+      "Hospitals": { "count": 7740, "median": 126500 },
+      "Universities": { "count": 5020, "median": 135800 },
+      "School Boards": { "count": 4020, "median": 116800 },
+      "Municipalities": { "count": 5480, "median": 121500 },
+      "Crown Agencies": { "count": 3520, "median": 131200 },
+      "Government": { "count": 3788, "median": 125000 }
+    }
+  },
+  {
+    "year": 2006,
+    "totalEmployees": 35840,
+    "totalCompensation": 4660000000,
+    "medianSalary": 123800,
+    "averageSalary": 130000,
+    "p25Salary": 110000,
+    "p75Salary": 148200,
+    "p90Salary": 186500,
+    "threshold": 100000,
+    "cpiIndex": 106.5,
+    "sectors": {
+      "Hospitals": { "count": 9380, "median": 128200 },
+      "Universities": { "count": 6080, "median": 138000 },
+      "School Boards": { "count": 4880, "median": 118500 },
+      "Municipalities": { "count": 6640, "median": 123200 },
+      "Crown Agencies": { "count": 4260, "median": 133500 },
+      "Government": { "count": 4600, "median": 127000 }
+    }
+  },
+  {
+    "year": 2007,
+    "totalEmployees": 43440,
+    "totalCompensation": 5730000000,
+    "medianSalary": 125500,
+    "averageSalary": 131900,
+    "p25Salary": 110800,
+    "p75Salary": 150500,
+    "p90Salary": 190000,
+    "threshold": 100000,
+    "cpiIndex": 108.8,
+    "sectors": {
+      "Hospitals": { "count": 11380, "median": 130000 },
+      "Universities": { "count": 7380, "median": 140500 },
+      "School Boards": { "count": 5900, "median": 120200 },
+      "Municipalities": { "count": 8040, "median": 125000 },
+      "Crown Agencies": { "count": 5180, "median": 136000 },
+      "Government": { "count": 5560, "median": 129000 }
+    }
+  },
+  {
+    "year": 2008,
+    "totalEmployees": 51736,
+    "totalCompensation": 6910000000,
+    "medianSalary": 127200,
+    "averageSalary": 133600,
+    "p25Salary": 111600,
+    "p75Salary": 152800,
+    "p90Salary": 194000,
+    "threshold": 100000,
+    "cpiIndex": 111.3,
+    "sectors": {
+      "Hospitals": { "count": 13560, "median": 131800 },
+      "Universities": { "count": 8780, "median": 142800 },
+      "School Boards": { "count": 7040, "median": 122000 },
+      "Municipalities": { "count": 9560, "median": 126800 },
+      "Crown Agencies": { "count": 6160, "median": 138500 },
+      "Government": { "count": 6636, "median": 131000 }
+    }
+  },
+  {
+    "year": 2009,
+    "totalEmployees": 61312,
+    "totalCompensation": 8310000000,
+    "medianSalary": 129000,
+    "averageSalary": 135500,
+    "p25Salary": 112400,
+    "p75Salary": 155200,
+    "p90Salary": 198000,
+    "threshold": 100000,
+    "cpiIndex": 111.6,
+    "sectors": {
+      "Hospitals": { "count": 16060, "median": 133600 },
+      "Universities": { "count": 10400, "median": 145200 },
+      "School Boards": { "count": 8340, "median": 123800 },
+      "Municipalities": { "count": 11340, "median": 128600 },
+      "Crown Agencies": { "count": 7320, "median": 141000 },
+      "Government": { "count": 7852, "median": 133000 }
+    }
+  },
+  {
+    "year": 2010,
+    "totalEmployees": 88412,
+    "totalCompensation": 12200000000,
+    "medianSalary": 130800,
+    "averageSalary": 138000,
+    "p25Salary": 113200,
+    "p75Salary": 157800,
+    "p90Salary": 202000,
+    "threshold": 100000,
+    "cpiIndex": 113.7,
+    "sectors": {
+      "Hospitals": { "count": 23200, "median": 135500 },
+      "Universities": { "count": 15020, "median": 148000 },
+      "School Boards": { "count": 12020, "median": 125500 },
+      "Municipalities": { "count": 16380, "median": 130500 },
+      "Crown Agencies": { "count": 10540, "median": 143500 },
+      "Government": { "count": 11252, "median": 135000 }
+    }
+  },
+  {
+    "year": 2011,
+    "totalEmployees": 88920,
+    "totalCompensation": 12400000000,
+    "medianSalary": 132500,
+    "averageSalary": 139400,
+    "p25Salary": 114000,
+    "p75Salary": 159500,
+    "p90Salary": 205000,
+    "threshold": 100000,
+    "cpiIndex": 117.0,
+    "sectors": {
+      "Hospitals": { "count": 23340, "median": 137200 },
+      "Universities": { "count": 15100, "median": 150500 },
+      "School Boards": { "count": 12080, "median": 127000 },
+      "Municipalities": { "count": 16440, "median": 132200 },
+      "Crown Agencies": { "count": 10580, "median": 146000 },
+      "Government": { "count": 11380, "median": 137000 }
+    }
+  },
+  {
+    "year": 2012,
+    "totalEmployees": 93458,
+    "totalCompensation": 13200000000,
+    "medianSalary": 134200,
+    "averageSalary": 141200,
+    "p25Salary": 114800,
+    "p75Salary": 161500,
+    "p90Salary": 208500,
+    "threshold": 100000,
+    "cpiIndex": 118.8,
+    "sectors": {
+      "Hospitals": { "count": 24520, "median": 139000 },
+      "Universities": { "count": 15880, "median": 153000 },
+      "School Boards": { "count": 12700, "median": 128800 },
+      "Municipalities": { "count": 17300, "median": 134000 },
+      "Crown Agencies": { "count": 11120, "median": 148500 },
+      "Government": { "count": 11938, "median": 139000 }
+    }
+  },
+  {
+    "year": 2013,
+    "totalEmployees": 96982,
+    "totalCompensation": 13800000000,
+    "medianSalary": 135800,
+    "averageSalary": 142300,
+    "p25Salary": 115500,
+    "p75Salary": 163200,
+    "p90Salary": 211500,
+    "threshold": 100000,
+    "cpiIndex": 119.8,
+    "sectors": {
+      "Hospitals": { "count": 25440, "median": 140500 },
+      "Universities": { "count": 16480, "median": 155000 },
+      "School Boards": { "count": 13180, "median": 130200 },
+      "Municipalities": { "count": 17960, "median": 135800 },
+      "Crown Agencies": { "count": 11540, "median": 150500 },
+      "Government": { "count": 12382, "median": 141000 }
+    }
+  },
+  {
+    "year": 2014,
+    "totalEmployees": 100742,
+    "totalCompensation": 14500000000,
+    "medianSalary": 137000,
+    "averageSalary": 143900,
+    "p25Salary": 116000,
+    "p75Salary": 165000,
+    "p90Salary": 214500,
+    "threshold": 100000,
+    "cpiIndex": 122.2,
+    "sectors": {
+      "Hospitals": { "count": 26420, "median": 142000 },
+      "Universities": { "count": 17120, "median": 157200 },
+      "School Boards": { "count": 13700, "median": 131500 },
+      "Municipalities": { "count": 18660, "median": 137200 },
+      "Crown Agencies": { "count": 12000, "median": 152500 },
+      "Government": { "count": 12842, "median": 143000 }
+    }
+  },
+  {
+    "year": 2015,
+    "totalEmployees": 107552,
+    "totalCompensation": 15600000000,
+    "medianSalary": 138400,
+    "averageSalary": 145100,
+    "p25Salary": 116500,
+    "p75Salary": 167000,
+    "p90Salary": 217500,
+    "threshold": 100000,
+    "cpiIndex": 123.6,
+    "sectors": {
+      "Hospitals": { "count": 28200, "median": 143500 },
+      "Universities": { "count": 18280, "median": 159500 },
+      "School Boards": { "count": 14620, "median": 133000 },
+      "Municipalities": { "count": 19920, "median": 138800 },
+      "Crown Agencies": { "count": 12800, "median": 154800 },
+      "Government": { "count": 13732, "median": 145000 }
+    }
+  },
+  {
+    "year": 2016,
+    "totalEmployees": 116528,
+    "totalCompensation": 17100000000,
+    "medianSalary": 139800,
+    "averageSalary": 146800,
+    "p25Salary": 117000,
+    "p75Salary": 169200,
+    "p90Salary": 221000,
+    "threshold": 100000,
+    "cpiIndex": 125.5,
+    "sectors": {
+      "Hospitals": { "count": 30540, "median": 145000 },
+      "Universities": { "count": 19800, "median": 161800 },
+      "School Boards": { "count": 15840, "median": 134500 },
+      "Municipalities": { "count": 21580, "median": 140200 },
+      "Crown Agencies": { "count": 13860, "median": 157000 },
+      "Government": { "count": 14908, "median": 147000 }
+    }
+  },
+  {
+    "year": 2017,
+    "totalEmployees": 128612,
+    "totalCompensation": 19100000000,
+    "medianSalary": 141500,
+    "averageSalary": 148500,
+    "p25Salary": 117600,
+    "p75Salary": 171500,
+    "p90Salary": 225000,
+    "threshold": 100000,
+    "cpiIndex": 127.4,
+    "sectors": {
+      "Hospitals": { "count": 33720, "median": 146800 },
+      "Universities": { "count": 21840, "median": 164200 },
+      "School Boards": { "count": 17480, "median": 136200 },
+      "Municipalities": { "count": 23820, "median": 142000 },
+      "Crown Agencies": { "count": 15300, "median": 159500 },
+      "Government": { "count": 16452, "median": 149000 }
+    }
+  },
+  {
+    "year": 2018,
+    "totalEmployees": 151082,
+    "totalCompensation": 22800000000,
+    "medianSalary": 143200,
+    "averageSalary": 150900,
+    "p25Salary": 118200,
+    "p75Salary": 174000,
+    "p90Salary": 229500,
+    "threshold": 100000,
+    "cpiIndex": 130.3,
+    "sectors": {
+      "Hospitals": { "count": 39620, "median": 148500 },
+      "Universities": { "count": 25660, "median": 166800 },
+      "School Boards": { "count": 20540, "median": 138000 },
+      "Municipalities": { "count": 27980, "median": 143800 },
+      "Crown Agencies": { "count": 17980, "median": 162000 },
+      "Government": { "count": 19302, "median": 151000 }
+    }
+  },
+  {
+    "year": 2019,
+    "totalEmployees": 166072,
+    "totalCompensation": 25300000000,
+    "medianSalary": 145000,
+    "averageSalary": 152400,
+    "p25Salary": 118800,
+    "p75Salary": 176500,
+    "p90Salary": 233500,
+    "threshold": 100000,
+    "cpiIndex": 132.9,
+    "sectors": {
+      "Hospitals": { "count": 43540, "median": 150200 },
+      "Universities": { "count": 28200, "median": 169500 },
+      "School Boards": { "count": 22580, "median": 139800 },
+      "Municipalities": { "count": 30740, "median": 145500 },
+      "Crown Agencies": { "count": 19780, "median": 164500 },
+      "Government": { "count": 21232, "median": 153000 }
+    }
+  },
+  {
+    "year": 2020,
+    "totalEmployees": 170812,
+    "totalCompensation": 26200000000,
+    "medianSalary": 146200,
+    "averageSalary": 153400,
+    "p25Salary": 119200,
+    "p75Salary": 178000,
+    "p90Salary": 236000,
+    "threshold": 100000,
+    "cpiIndex": 134.0,
+    "sectors": {
+      "Hospitals": { "count": 44800, "median": 151500 },
+      "Universities": { "count": 29020, "median": 171000 },
+      "School Boards": { "count": 23220, "median": 141000 },
+      "Municipalities": { "count": 31640, "median": 146800 },
+      "Crown Agencies": { "count": 20340, "median": 166000 },
+      "Government": { "count": 21792, "median": 154500 }
+    }
+  },
+  {
+    "year": 2021,
+    "totalEmployees": 205752,
+    "totalCompensation": 31800000000,
+    "medianSalary": 147800,
+    "averageSalary": 154600,
+    "p25Salary": 119800,
+    "p75Salary": 180000,
+    "p90Salary": 240000,
+    "threshold": 100000,
+    "cpiIndex": 138.8,
+    "sectors": {
+      "Hospitals": { "count": 53960, "median": 153000 },
+      "Universities": { "count": 34960, "median": 173500 },
+      "School Boards": { "count": 27980, "median": 142500 },
+      "Municipalities": { "count": 38100, "median": 148200 },
+      "Crown Agencies": { "count": 24480, "median": 168500 },
+      "Government": { "count": 26272, "median": 156000 }
+    }
+  },
+  {
+    "year": 2022,
+    "totalEmployees": 263684,
+    "totalCompensation": 41200000000,
+    "medianSalary": 149500,
+    "averageSalary": 156200,
+    "p25Salary": 120500,
+    "p75Salary": 182500,
+    "p90Salary": 245000,
+    "threshold": 100000,
+    "cpiIndex": 148.2,
+    "sectors": {
+      "Hospitals": { "count": 69120, "median": 155000 },
+      "Universities": { "count": 44780, "median": 176000 },
+      "School Boards": { "count": 35840, "median": 144000 },
+      "Municipalities": { "count": 48820, "median": 150000 },
+      "Crown Agencies": { "count": 31380, "median": 171000 },
+      "Government": { "count": 33744, "median": 158500 }
+    }
+  },
+  {
+    "year": 2023,
+    "totalEmployees": 319482,
+    "totalCompensation": 46800000000,
+    "medianSalary": 151200,
+    "averageSalary": 146400,
+    "p25Salary": 121200,
+    "p75Salary": 185000,
+    "p90Salary": 249000,
+    "threshold": 100000,
+    "cpiIndex": 153.8,
+    "sectors": {
+      "Hospitals": { "count": 83760, "median": 157000 },
+      "Universities": { "count": 54260, "median": 178500 },
+      "School Boards": { "count": 43420, "median": 145800 },
+      "Municipalities": { "count": 59140, "median": 151800 },
+      "Crown Agencies": { "count": 38020, "median": 173500 },
+      "Government": { "count": 40882, "median": 160500 }
+    }
+  },
+  {
+    "year": 2024,
+    "totalEmployees": 377416,
+    "totalCompensation": 50200000000,
+    "medianSalary": 153000,
+    "averageSalary": 133000,
+    "p25Salary": 115200,
+    "p75Salary": 187500,
+    "p90Salary": 253000,
+    "threshold": 100000,
+    "cpiIndex": 142.0,
+    "sectors": {
+      "Hospitals": { "count": 98940, "median": 159000 },
+      "Universities": { "count": 64100, "median": 181000 },
+      "School Boards": { "count": 51280, "median": 147500 },
+      "Municipalities": { "count": 69880, "median": 153500 },
+      "Crown Agencies": { "count": 44920, "median": 176000 },
+      "Government": { "count": 48296, "median": 162500 }
+    }
+  }
+]
