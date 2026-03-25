@@ -66,7 +66,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('2024');
   const [selectedSalaryRange, setSelectedSalaryRange] = useState('all');
 
   // Sort state

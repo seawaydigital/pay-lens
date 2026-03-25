@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { ONTARIO_REGIONS } from '@/lib/geo/regions';
+import { getBenchmarks } from '@/lib/db';
+import type { Benchmark } from '@/lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Dynamic imports for chart / visualization components (SSR disabled)
@@ -159,6 +161,61 @@ function estimatePercentile(salary: number, p: Percentiles): number {
   return 50; // fallback
 }
 
+/**
+ * Generate a rough distribution histogram from percentile/min/max values.
+ * Creates ~10 buckets between min_salary and max_salary with estimated counts
+ * based on the percentile positions.
+ */
+function generateDistributionFromPercentiles(b: Benchmark): DistributionBucket[] {
+  const min = b.min_salary ?? b.p25 * 0.8;
+  const max = b.max_salary ?? b.p90 * 1.3;
+  const range = max - min;
+  if (range <= 0 || b.sample_size <= 0) return [];
+
+  const numBuckets = 10;
+  const bucketWidth = range / numBuckets;
+  const buckets: DistributionBucket[] = [];
+
+  // Known CDF points from percentiles
+  const cdfPoints: [number, number][] = [
+    [min, 0],
+    [b.p25, 0.25],
+    [b.p50, 0.50],
+    [b.p75, 0.75],
+    [b.p90, 0.90],
+    [max, 1.0],
+  ];
+
+  function interpolateCdf(salary: number): number {
+    if (salary <= cdfPoints[0][0]) return 0;
+    if (salary >= cdfPoints[cdfPoints.length - 1][0]) return 1;
+    for (let i = 0; i < cdfPoints.length - 1; i++) {
+      const [sLow, cLow] = cdfPoints[i];
+      const [sHigh, cHigh] = cdfPoints[i + 1];
+      if (salary >= sLow && salary <= sHigh) {
+        if (sHigh === sLow) return cLow;
+        const t = (salary - sLow) / (sHigh - sLow);
+        return cLow + t * (cHigh - cLow);
+      }
+    }
+    return 0.5;
+  }
+
+  for (let i = 0; i < numBuckets; i++) {
+    const lo = min + i * bucketWidth;
+    const hi = lo + bucketWidth;
+    const cdfLo = interpolateCdf(lo);
+    const cdfHi = interpolateCdf(hi);
+    const fraction = cdfHi - cdfLo;
+    buckets.push({
+      bucket: Math.round(lo + bucketWidth / 2),
+      count: Math.max(1, Math.round(fraction * b.sample_size)),
+    });
+  }
+
+  return buckets;
+}
+
 function ordinalSuffix(n: number): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -214,12 +271,28 @@ export default function BenchmarkPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/data/benchmark-data.json')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load benchmark data');
-        return res.json() as Promise<BenchmarkData>;
+    getBenchmarks()
+      .then((benchmarks) => {
+        const roles: Record<string, RoleData> = {};
+        for (const b of benchmarks) {
+          roles[b.id] = {
+            name: b.role,
+            category: b.institution_breakdown?.[0]?.type || 'Other',
+            totalRecords: b.sample_size,
+            percentiles: { p25: b.p25, p50: b.p50, p75: b.p75, p90: b.p90 },
+            distribution: generateDistributionFromPercentiles(b),
+            byInstitutionType: b.institution_breakdown || [],
+            byRegion: [],
+            trend: (b.yearly_trend || []).map((t) => ({
+              year: t.year,
+              median: t.median,
+              medianAdjusted: t.median,
+              count: t.count,
+            })),
+          };
+        }
+        setBenchmarkData({ roles });
       })
-      .then(setBenchmarkData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);

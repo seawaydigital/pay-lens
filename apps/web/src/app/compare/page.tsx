@@ -16,6 +16,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 
+import { getEmployers } from '@/lib/db';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { Button } from '@/components/ui/button';
@@ -248,19 +249,26 @@ function CompareContent() {
     null,
   ]);
 
-  // Fetch employer index
+  // Fetch employer index from Supabase
   React.useEffect(() => {
-    fetch('/data/employers-index.json')
-      .then((r) => r.json())
-      .then((data: EmployerIndex[]) => {
-        setAllEmployers(data);
+    getEmployers()
+      .then((data) => {
+        const mapped: EmployerIndex[] = data.map((e) => ({
+          id: e.id,
+          name: e.name,
+          sector: e.sector,
+          regionId: e.region_id,
+          headcount: e.headcount,
+          medianSalary: e.median_salary,
+        }));
+        setAllEmployers(mapped);
 
         // Hydrate from URL params
         const idsParam = searchParams.get('ids');
         if (idsParam) {
           const ids = idsParam.split(',').filter(Boolean).slice(0, 3);
           const matched = ids.map(
-            (id) => data.find((e) => e.id === id) ?? null
+            (id) => mapped.find((e) => e.id === id) ?? null
           );
           // Ensure at least 2 slots
           while (matched.length < 2) matched.push(null);

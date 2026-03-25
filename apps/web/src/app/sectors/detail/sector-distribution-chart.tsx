@@ -12,11 +12,17 @@ import {
 import { ChartContainer } from '@/components/charts/chart-container';
 import { formatNumber } from '@/lib/utils';
 
-interface SectorDistributionChartProps {
-  sectorName: string;
+interface DistributionBucket {
+  bucket: string;
+  count: number;
 }
 
-const distributionData = [
+interface SectorDistributionChartProps {
+  sectorName: string;
+  data?: DistributionBucket[];
+}
+
+const fallbackData: DistributionBucket[] = [
   { bucket: '$100K-$110K', count: 4200 },
   { bucket: '$110K-$120K', count: 6800 },
   { bucket: '$120K-$130K', count: 5400 },
@@ -48,12 +54,13 @@ function DistTooltip({ active, payload }: DistTooltipProps) {
   );
 }
 
-export function SectorDistributionChart({ sectorName }: SectorDistributionChartProps) {
+export function SectorDistributionChart({ sectorName, data }: SectorDistributionChartProps) {
+  const chartData = data && data.length > 0 ? data : fallbackData;
   return (
     <ChartContainer title={`Salary Distribution \u2014 ${sectorName}`} height={300}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={distributionData}
+          data={chartData}
           margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />

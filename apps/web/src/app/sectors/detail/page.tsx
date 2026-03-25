@@ -5,10 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Layers, Users, DollarSign } from 'lucide-react';
+import { ArrowLeft, Layers, Users, DollarSign, TrendingUp } from 'lucide-react';
 
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { getSectorById } from '@/lib/db';
+import { searchDisclosures } from '@/lib/db';
 
 const SectorDistributionChart = dynamic(
   () =>
@@ -24,19 +26,29 @@ const SectorTrendChart = dynamic(
   { ssr: false }
 );
 
-interface Sector {
+interface SectorView {
   id: string;
   name: string;
   count: number;
   medianSalary: number;
+  avgSalary: number;
+  minSalary: number;
+  maxSalary: number;
   totalComp: number;
+  yoyGrowth: number;
+}
+
+interface DistributionBucket {
+  bucket: string;
+  count: number;
 }
 
 function SectorDetailContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
 
-  const [sector, setSector] = useState<Sector | null>(null);
+  const [sector, setSector] = useState<SectorView | null>(null);
+  const [distributionData, setDistributionData] = useState<DistributionBucket[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -47,15 +59,70 @@ function SectorDetailContent() {
       return;
     }
 
-    fetch('/data/sectors.json')
-      .then((res) => res.json())
-      .then((data: Sector[]) => {
-        const found = data.find((s) => s.id === id);
-        if (found) {
-          setSector(found);
-        } else {
+    getSectorById(id)
+      .then(async (data) => {
+        if (!data) {
           setNotFound(true);
+          setLoading(false);
+          return;
         }
+
+        setSector({
+          id: data.id,
+          name: data.name,
+          count: data.employee_count,
+          medianSalary: data.median_salary,
+          avgSalary: data.avg_salary,
+          minSalary: data.min_salary,
+          maxSalary: data.max_salary,
+          totalComp: data.total_compensation,
+          yoyGrowth: data.yoy_growth,
+        });
+
+        // Build salary distribution from actual disclosures
+        try {
+          const { data: disclosures } = await searchDisclosures({
+            sector: data.name,
+            pageSize: 1000,
+          });
+
+          // Create distribution buckets
+          const bucketSize = 10000; // $10K buckets
+          const min = Math.floor((data.min_salary || 100000) / bucketSize) * bucketSize;
+          const max = Math.ceil((data.max_salary || 300000) / bucketSize) * bucketSize;
+          const bucketCounts: Record<string, number> = {};
+
+          for (let b = min; b < max; b += bucketSize) {
+            const label =
+              b + bucketSize >= max
+                ? `$${Math.round(b / 1000)}K+`
+                : `$${Math.round(b / 1000)}K-$${Math.round((b + bucketSize) / 1000)}K`;
+            bucketCounts[label] = 0;
+          }
+
+          for (const d of disclosures) {
+            const salary = d.salary_paid;
+            const bucketStart = Math.floor(salary / bucketSize) * bucketSize;
+            const label =
+              bucketStart + bucketSize >= max
+                ? `$${Math.round(bucketStart / 1000)}K+`
+                : `$${Math.round(bucketStart / 1000)}K-$${Math.round((bucketStart + bucketSize) / 1000)}K`;
+            if (label in bucketCounts) {
+              bucketCounts[label]++;
+            } else {
+              // Falls in last bucket
+              const lastKey = Object.keys(bucketCounts).pop();
+              if (lastKey) bucketCounts[lastKey]++;
+            }
+          }
+
+          setDistributionData(
+            Object.entries(bucketCounts).map(([bucket, count]) => ({ bucket, count }))
+          );
+        } catch {
+          // Distribution chart will be empty if disclosures fail
+        }
+
         setLoading(false);
       })
       .catch(() => {
@@ -118,7 +185,7 @@ function SectorDetailContent() {
       </div>
 
       {/* Stats */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-sunshine-200 bg-white p-5">
           <div className="flex items-center gap-2 text-sunshine-600">
             <Users className="h-4 w-4" />
@@ -148,11 +215,21 @@ function SectorDetailContent() {
             {formatCurrency(sector.totalComp)}
           </p>
         </div>
+
+        <div className="rounded-lg border border-sunshine-200 bg-white p-5">
+          <div className="flex items-center gap-2 text-sunshine-600">
+            <TrendingUp className="h-4 w-4" />
+            <span className="text-sm">Year-over-Year Growth</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-sunshine-900">
+            {sector.yoyGrowth >= 0 ? '+' : ''}{sector.yoyGrowth.toFixed(1)}%
+          </p>
+        </div>
       </div>
 
       {/* Charts */}
       <div className="mt-8 space-y-6">
-        <SectorDistributionChart sectorName={sector.name} />
+        <SectorDistributionChart sectorName={sector.name} data={distributionData} />
         <SectorTrendChart sectorName={sector.name} />
       </div>
 

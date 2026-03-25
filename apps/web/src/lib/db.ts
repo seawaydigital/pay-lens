@@ -44,9 +44,10 @@ export async function searchDisclosures({
   page = 1,
   pageSize = 25,
 }: SearchParams): Promise<SearchResult> {
+  const hasFilters = !!(query?.trim() || sector || year || regionId || minSalary || maxSalary);
   let q = supabase
     .from('disclosures')
-    .select('*', { count: 'exact' });
+    .select('*', { count: hasFilters ? 'exact' : 'estimated' });
 
   if (query.trim()) {
     // Use full-text search when query provided
