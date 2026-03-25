@@ -17,7 +17,6 @@ export const NAV_ITEMS = [
   { label: 'Compare', href: '/compare' },
   { label: 'Employers', href: '/employers' },
   { label: 'Sectors', href: '/sectors' },
-  { label: 'API', href: '/api-docs' },
 ] as const;
 
 export const SECTORS = [

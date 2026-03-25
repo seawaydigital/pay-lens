@@ -499,15 +499,11 @@ function CompareContent() {
                   : 'grid-cols-3'
               )}
             >
-              {selectedEmployers.map((emp, i) => {
-                const isHighest = emp.medianSalary === maxMedian;
-                return (
+              {selectedEmployers.map((emp, i) => (
                   <div key={emp.id} className="text-center space-y-1">
                     <p
-                      className={cn(
-                        'text-lg font-bold',
-                        isHighest ? 'text-success' : 'text-sunshine-900'
-                      )}
+                      className="text-lg font-bold"
+                      style={{ color: SLOT_COLORS[i] }}
                     >
                       {formatCurrency(emp.medianSalary)}
                     </p>
@@ -516,15 +512,12 @@ function CompareContent() {
                         className="h-full rounded-full transition-all duration-500"
                         style={{
                           width: `${(emp.medianSalary / maxMedian) * 100}%`,
-                          backgroundColor: isHighest
-                            ? '#059669'
-                            : SLOT_COLORS[i],
+                          backgroundColor: SLOT_COLORS[i],
                         }}
                       />
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           </ComparisonRow>
 

@@ -15,7 +15,6 @@ const EXPLORE_LINKS = [
 
 const RESOURCE_LINKS = [
   { label: 'Methodology', href: '/methodology' },
-  { label: 'Data Access & API', href: '/api-docs' },
   { label: 'Report an Error', href: '/report-error' },
   { label: 'Request Name Removal', href: '/name-removal' },
 ] as const;
