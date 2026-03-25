@@ -113,6 +113,17 @@ function PersonDetailContent() {
   const [person, setPerson] = useState<Disclosure | null>(null);
   const [history, setHistory] = useState<Disclosure[]>([]);
   const [peers, setPeers] = useState<Disclosure[]>([]);
+  const [peerStats, setPeerStats] = useState<{
+    totalPeers: number;
+    peersBelow: number;
+    percentile: number;
+  } | null>(null);
+  const [employerRank, setEmployerRank] = useState<{
+    rank: number;
+    total: number;
+  } | null>(null);
+  const [sectorMedian, setSectorMedian] = useState<number | null>(null);
+  const [colleagues, setColleagues] = useState<Disclosure[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -131,26 +142,110 @@ function PersonDetailContent() {
         if (error || !disc) { setNotFound(true); setLoading(false); return; }
         setPerson(disc);
 
-        // 2. Fetch all records for the same person (same name) — salary history
-        const { data: hist } = await supabase
-          .from('disclosures')
-          .select('*')
-          .ilike('first_name', disc.first_name)
-          .ilike('last_name', disc.last_name)
-          .order('year', { ascending: true });
+        // Run all secondary queries in parallel
+        const [
+          histResult,
+          peerTopResult,
+          peerTotalResult,
+          peerBelowResult,
+          empRankAboveResult,
+          empTotalResult,
+          sectorResult,
+          colleagueResult,
+        ] = await Promise.all([
+          // 2. Salary history — all records with same name
+          supabase
+            .from('disclosures')
+            .select('*')
+            .ilike('first_name', disc.first_name)
+            .ilike('last_name', disc.last_name)
+            .order('year', { ascending: true }),
 
-        setHistory(hist ?? []);
+          // 3. Top peers with same job title (for display table)
+          supabase
+            .from('disclosures')
+            .select('*')
+            .eq('year', disc.year)
+            .eq('job_title', disc.job_title)
+            .order('salary_paid', { ascending: false })
+            .limit(10),
 
-        // 3. Fetch peers: same job title, same sector (limited to 50 for percentile calc)
-        const { data: peerData } = await supabase
-          .from('disclosures')
-          .select('*')
-          .eq('year', disc.year)
-          .ilike('job_title', disc.job_title)
-          .order('salary_paid', { ascending: false })
-          .limit(200);
+          // 4a. Total peers with same title (for percentile)
+          supabase
+            .from('disclosures')
+            .select('*', { count: 'exact', head: true })
+            .eq('year', disc.year)
+            .eq('job_title', disc.job_title),
 
-        setPeers(peerData ?? []);
+          // 4b. Peers earning less than or equal (for percentile)
+          supabase
+            .from('disclosures')
+            .select('*', { count: 'exact', head: true })
+            .eq('year', disc.year)
+            .eq('job_title', disc.job_title)
+            .lte('salary_paid', disc.salary_paid),
+
+          // 5a. Employees at same employer earning more (for rank)
+          supabase
+            .from('disclosures')
+            .select('*', { count: 'exact', head: true })
+            .eq('year', disc.year)
+            .eq('employer_id', disc.employer_id)
+            .gt('salary_paid', disc.salary_paid),
+
+          // 5b. Total employees at same employer
+          supabase
+            .from('disclosures')
+            .select('*', { count: 'exact', head: true })
+            .eq('year', disc.year)
+            .eq('employer_id', disc.employer_id),
+
+          // 6. Sector median
+          supabase
+            .from('sectors')
+            .select('median_salary')
+            .ilike('name', disc.sector)
+            .limit(1)
+            .single(),
+
+          // 7. Same-employer colleagues in related roles (top 5 by salary, excluding self)
+          supabase
+            .from('disclosures')
+            .select('*')
+            .eq('year', disc.year)
+            .eq('employer_id', disc.employer_id)
+            .neq('id', disc.id)
+            .order('salary_paid', { ascending: false })
+            .limit(5),
+        ]);
+
+        setHistory(histResult.data ?? []);
+        setPeers(peerTopResult.data ?? []);
+
+        // Percentile: (peers earning ≤ you) / total peers × 100
+        const totalPeers = peerTotalResult.count ?? 0;
+        const peersBelow = peerBelowResult.count ?? 0;
+        if (totalPeers > 1) {
+          setPeerStats({
+            totalPeers,
+            peersBelow,
+            percentile: Math.max(1, Math.round((peersBelow / totalPeers) * 100)),
+          });
+        }
+
+        // Employer rank
+        const empAbove = empRankAboveResult.count ?? 0;
+        const empTotal = empTotalResult.count ?? 0;
+        if (empTotal > 0) {
+          setEmployerRank({ rank: empAbove + 1, total: empTotal });
+        }
+
+        // Sector median
+        if (sectorResult.data?.median_salary) {
+          setSectorMedian(sectorResult.data.median_salary);
+        }
+
+        setColleagues(colleagueResult.data ?? []);
       } catch {
         setNotFound(true);
       } finally {
@@ -189,9 +284,9 @@ function PersonDetailContent() {
   const fullName = `${person.first_name} ${person.last_name}`;
   const totalComp = person.salary_paid + person.taxable_benefits;
 
-  // Percentile among peers
-  const peerPercentile = peers.length > 1
-    ? Math.round((peers.filter(p => p.salary_paid <= person.salary_paid).length / peers.length) * 100)
+  // Sector comparison
+  const sectorDiff = sectorMedian
+    ? ((person.salary_paid - sectorMedian) / sectorMedian) * 100
     : null;
 
   // YoY change from history
@@ -304,42 +399,73 @@ function PersonDetailContent() {
         )}
       </div>
 
-      {/* Peer percentile */}
-      {peerPercentile !== null && peers.length > 5 && (
-        <div className="mt-6 rounded-lg border border-sunshine-200 bg-white p-5">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-sunshine-500">
-                Peer Percentile — {person.job_title}
-              </p>
-              <p className="mt-1 text-2xl font-bold text-sunshine-900">
-                {peerPercentile}<span className="text-base font-normal text-sunshine-600">th percentile</span>
-              </p>
-              <p className="mt-0.5 text-sm text-sunshine-600">
-                Among {formatNumber(peers.length)} colleagues with the same title in {person.year}
-              </p>
+      {/* Insights row: percentile + employer rank + sector comparison */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Peer percentile */}
+        {peerStats && (
+          <div className="rounded-lg border border-sunshine-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-sunshine-500">
+              Peer Percentile — {person.job_title}
+            </p>
+            <p className="mt-1 text-2xl font-bold text-sunshine-900">
+              {peerStats.percentile}<span className="text-base font-normal text-sunshine-600">th</span>
+            </p>
+            <div className="mt-2 relative h-3 w-full rounded-full bg-sunshine-100">
+              <div
+                className="h-full rounded-full bg-sunshine-500 transition-all duration-700"
+                style={{ width: `${peerStats.percentile}%` }}
+              />
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-5 w-1.5 rounded-full bg-sunshine-800"
+                style={{ left: `${peerStats.percentile}%` }}
+              />
             </div>
-            {/* Visual percentile bar */}
-            <div className="flex-1 min-w-[200px] max-w-sm">
-              <div className="relative h-4 w-full rounded-full bg-sunshine-100">
-                <div
-                  className="h-full rounded-full bg-sunshine-500 transition-all duration-700"
-                  style={{ width: `${peerPercentile}%` }}
-                />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-6 w-1.5 rounded-full bg-sunshine-800"
-                  style={{ left: `${peerPercentile}%` }}
-                />
-              </div>
-              <div className="mt-1 flex justify-between text-xs text-sunshine-400">
-                <span>Lowest</span>
-                <span>Median</span>
-                <span>Highest</span>
-              </div>
-            </div>
+            <p className="mt-1.5 text-xs text-sunshine-500">
+              Among {formatNumber(peerStats.totalPeers)} with the same title in {person.year}
+            </p>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Employer ranking */}
+        {employerRank && (
+          <div className="rounded-lg border border-sunshine-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-sunshine-500">
+              Employer Ranking
+            </p>
+            <p className="mt-1 text-2xl font-bold text-sunshine-900">
+              #{employerRank.rank}
+              <span className="text-base font-normal text-sunshine-600"> of {formatNumber(employerRank.total)}</span>
+            </p>
+            <div className="mt-2 relative h-3 w-full rounded-full bg-sunshine-100">
+              <div
+                className="h-full rounded-full bg-amber-500 transition-all duration-700"
+                style={{ width: `${Math.max(2, 100 - (employerRank.rank / employerRank.total) * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-sunshine-500">
+              At {person.employer} in {person.year}
+            </p>
+          </div>
+        )}
+
+        {/* Sector comparison */}
+        {sectorMedian && sectorDiff !== null && (
+          <div className="rounded-lg border border-sunshine-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-sunshine-500">
+              vs. Sector Median
+            </p>
+            <p className={`mt-1 text-2xl font-bold ${sectorDiff >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              {sectorDiff >= 0 ? '+' : ''}{sectorDiff.toFixed(1)}%
+            </p>
+            <p className="mt-1 text-sm text-sunshine-700">
+              Sector median: {formatCurrency(sectorMedian)}
+            </p>
+            <p className="mt-0.5 text-xs text-sunshine-500">
+              {person.sector} sector, {person.year}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Salary history chart */}
       {chartData.length > 1 && (
@@ -471,11 +597,47 @@ function PersonDetailContent() {
               </tbody>
             </table>
           </div>
-          {peers.length > 10 && (
+          {peerStats && peerStats.totalPeers > 10 && (
             <p className="mt-3 text-xs text-sunshine-400">
-              Showing top 10 of {formatNumber(peers.length)} colleagues with this title
+              Showing top 10 of {formatNumber(peerStats.totalPeers)} colleagues with this title
             </p>
           )}
+        </SectionCard>
+      )}
+
+      {/* Highest-paid colleagues at same employer */}
+      {colleagues.length > 0 && (
+        <SectionCard title={`Top Earners at ${person.employer}`} icon={Building2}>
+          <p className="mb-3 text-sm text-sunshine-600">
+            Highest-paid employees at the same organization in {person.year}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-sunshine-200">
+                  <th className="pb-2 text-left font-semibold text-sunshine-700">Name</th>
+                  <th className="pb-2 text-left font-semibold text-sunshine-700">Title</th>
+                  <th className="pb-2 text-right font-semibold text-sunshine-700">Salary</th>
+                </tr>
+              </thead>
+              <tbody>
+                {colleagues.map(c => (
+                  <tr key={c.id} className="border-b border-sunshine-100">
+                    <td className="py-2">
+                      <Link
+                        href={`/person?id=${c.id}`}
+                        className="text-sunshine-600 hover:text-sunshine-900 hover:underline"
+                      >
+                        {c.first_name} {c.last_name}
+                      </Link>
+                    </td>
+                    <td className="py-2 text-sunshine-600 max-w-[180px] truncate">{c.job_title}</td>
+                    <td className="py-2 text-right font-mono text-sunshine-900">{formatCurrency(c.salary_paid)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
       )}
 
