@@ -67,7 +67,7 @@ function PersonSelector({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced search
+  // Debounced search — deduplicate by name, keep latest year per person
   React.useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) {
@@ -77,8 +77,17 @@ function PersonSelector({
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const { data } = await searchDisclosures({ query, pageSize: 10 });
-        setResults(data);
+        const { data } = await searchDisclosures({ query, pageSize: 30 });
+        // Deduplicate: keep only the latest-year entry per unique name
+        const seen = new Map<string, Disclosure>();
+        for (const d of data) {
+          const key = `${d.first_name.toLowerCase()}|${d.last_name.toLowerCase()}|${d.employer.toLowerCase()}`;
+          const existing = seen.get(key);
+          if (!existing || d.year > existing.year) {
+            seen.set(key, d);
+          }
+        }
+        setResults(Array.from(seen.values()).slice(0, 10));
       } catch {
         setResults([]);
       } finally {
@@ -182,7 +191,7 @@ function PersonSelector({
                     {fullName(d)}
                   </span>
                   <span className="ml-1 text-sunshine-600">
-                    &mdash; {d.job_title} at {d.employer} ({d.year})
+                    &mdash; {d.job_title} at {d.employer}
                   </span>
                 </button>
               </li>
@@ -381,6 +390,15 @@ function ComparePeopleContent() {
         title="Compare People"
         description="Side-by-side comparison of individuals on the Ontario Sunshine List."
       />
+
+      <div className="rounded-lg border border-sunshine-200 bg-white p-4 text-sm text-sunshine-700">
+        <p className="font-semibold text-sunshine-900 mb-1">How it works</p>
+        <p>
+          Search for 2–3 people by name to compare their salaries, benefits,
+          roles, and salary history across all years they appear on the list.
+          All available years of data are included automatically.
+        </p>
+      </div>
 
       <DataCaveatBanner />
 

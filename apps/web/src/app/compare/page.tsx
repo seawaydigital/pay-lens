@@ -352,6 +352,15 @@ function CompareContent() {
         description="Side-by-side comparison of Ontario public sector employers on the Sunshine List."
       />
 
+      <div className="rounded-lg border border-sunshine-200 bg-white p-4 text-sm text-sunshine-700">
+        <p className="font-semibold text-sunshine-900 mb-1">How it works</p>
+        <p>
+          Search and select 2–3 employers to compare their headcount, median
+          salary, salary distribution, and year-over-year trends. You can share
+          the comparison by copying the URL.
+        </p>
+      </div>
+
       <DataCaveatBanner />
 
       {/* ── Employer Selectors ─────────────────────────────────────────── */}
