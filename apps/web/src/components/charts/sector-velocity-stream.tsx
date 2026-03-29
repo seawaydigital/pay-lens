@@ -18,12 +18,9 @@ interface SectorVelocityProps {
 }
 
 const velocityData = [
-  { year: 2019, 'School Boards': 72800, 'Hospitals': 38200, 'Universities': 32400, 'Municipalities': 24800, 'Government': 35600, 'Crown Agencies': 18200 },
-  { year: 2020, 'School Boards': 78200, 'Hospitals': 40100, 'Universities': 34600, 'Municipalities': 26200, 'Government': 36800, 'Crown Agencies': 19800 },
-  { year: 2021, 'School Boards': 83400, 'Hospitals': 43500, 'Universities': 37200, 'Municipalities': 28900, 'Government': 38200, 'Crown Agencies': 21400 },
-  { year: 2022, 'School Boards': 88100, 'Hospitals': 46200, 'Universities': 40100, 'Municipalities': 31200, 'Government': 39500, 'Crown Agencies': 23600 },
   { year: 2023, 'School Boards': 93800, 'Hospitals': 48900, 'Universities': 43200, 'Municipalities': 33400, 'Government': 40800, 'Crown Agencies': 25800 },
   { year: 2024, 'School Boards': 98500, 'Hospitals': 51200, 'Universities': 45800, 'Municipalities': 35600, 'Government': 42100, 'Crown Agencies': 28450 },
+  { year: 2025, 'School Boards': 103200, 'Hospitals': 53800, 'Universities': 48100, 'Municipalities': 37500, 'Government': 43500, 'Crown Agencies': 30200 },
 ];
 
 const SECTOR_COLORS: Record<string, string> = {

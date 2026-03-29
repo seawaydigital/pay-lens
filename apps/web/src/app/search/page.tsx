@@ -26,7 +26,7 @@ import { ExportButton } from '@/components/shared/export-button';
 import { searchDisclosures, getSectors } from '@/lib/db';
 import type { Disclosure as DbDisclosure, Sector } from '@/lib/supabase';
 
-const YEARS = [2024, 2023, 2022, 2021, 2020, 2019];
+const YEARS = [2025, 2024, 2023];
 const PAGE_SIZE = 25;
 
 const SALARY_RANGES = [
@@ -66,7 +66,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('2024');
+  const [selectedYear, setSelectedYear] = useState('2025');
   const [selectedSalaryRange, setSelectedSalaryRange] = useState('all');
 
   // Sort state
@@ -118,6 +118,20 @@ export default function SearchPage() {
         if (cancelled) return;
 
         let mapped = data.map(mapDisclosure);
+
+        // When "All years" is selected, deduplicate by person+employer
+        // keeping only the latest year entry per person
+        if (!selectedYear || selectedYear === 'all') {
+          const seen = new Map<string, Disclosure>();
+          for (const d of mapped) {
+            const key = `${d.firstName}|${d.lastName}|${d.employer}`.toLowerCase();
+            const existing = seen.get(key);
+            if (!existing || d.year > existing.year) {
+              seen.set(key, d);
+            }
+          }
+          mapped = Array.from(seen.values());
+        }
 
         // Apply client-side sort for fields other than salary (DB always sorts by salary_paid)
         if (sortField !== 'salary') {
@@ -193,7 +207,7 @@ export default function SearchPage() {
 
   const hasActiveFilters =
     selectedSector !== 'all' ||
-    selectedYear !== 'all' ||
+    selectedYear !== '2025' ||
     selectedSalaryRange !== 'all' ||
     query.trim().length > 0;
 
@@ -201,7 +215,7 @@ export default function SearchPage() {
     setQuery('');
     setDebouncedQuery('');
     setSelectedSector('all');
-    setSelectedYear('all');
+    setSelectedYear('2025');
     setSelectedSalaryRange('all');
   };
 

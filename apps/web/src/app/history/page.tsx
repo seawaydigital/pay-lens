@@ -17,7 +17,7 @@ import {
   YAxis,
   AreaChart,
 } from 'recharts';
-import { ArrowRight, TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
+import { TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
@@ -25,7 +25,7 @@ import { ChartContainer } from '@/components/charts/chart-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatNumber, formatPercent, cn } from '@/lib/utils';
 import { CPI_TABLE } from '@/lib/data/cpi-table';
-import { SUNSHINE_THRESHOLD, FIRST_YEAR, LATEST_YEAR } from '@/lib/constants';
+
 import { getHistoricalSeries } from '@/lib/db';
 
 // ---------------------------------------------------------------------------
@@ -64,14 +64,7 @@ const SECTOR_COLORS: Record<string, string> = {
   Government: '#fde68a',
 };
 
-const MILESTONES = [
-  { year: 1996, label: 'Sunshine List created', detail: '4,584 employees' },
-  { year: 2003, label: 'First year over 20K employees', detail: '20,812 employees' },
-  { year: 2010, label: 'List reaches ~88K', detail: '88,412 employees' },
-  { year: 2016, label: 'Over 100K for the first time', detail: '116,528 employees' },
-  { year: 2020, label: 'COVID year — growth paused', detail: '170,812 employees' },
-  { year: 2024, label: 'Record high', detail: '377K employees, $50B total compensation' },
-];
+// Milestones are derived from actual data below
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -95,7 +88,7 @@ function CustomTooltipContent({
   adjusted: boolean;
 }) {
   if (!active || !payload || !payload.length) return null;
-  const suffix = adjusted ? ' (2024$)' : '';
+  const suffix = adjusted ? ' (2025$)' : '';
 
   return (
     <div className="rounded-md border border-sunshine-200 bg-white px-3 py-2 shadow-md">
@@ -150,15 +143,21 @@ export default function HistoryPage() {
   const firstYear = data[0];
   const latestYear = data[data.length - 1];
 
-  const thresholdToday = useMemo(() => {
-    if (!firstYear) return 0;
-    return adjustValue(SUNSHINE_THRESHOLD, FIRST_YEAR, true);
-  }, [firstYear]);
-
   const headcountGrowth = useMemo(() => {
     if (!firstYear || !latestYear) return 0;
     return ((latestYear.totalEmployees - firstYear.totalEmployees) / firstYear.totalEmployees) * 100;
   }, [firstYear, latestYear]);
+
+  const yearsOfData = data.length;
+
+  const milestones = useMemo(() => {
+    if (!data.length) return [];
+    return data.map((d) => ({
+      year: d.year,
+      label: `${formatNumber(d.totalEmployees)} employees`,
+      detail: `Median salary: ${formatCurrency(d.medianSalary)}, Total compensation: ${formatCurrency(d.totalCompensation)}`,
+    }));
+  }, [data]);
 
   // Main time-series chart data
   const mainChartData = useMemo(() => {
@@ -207,7 +206,7 @@ export default function HistoryPage() {
       <div className="container mx-auto max-w-7xl space-y-8 px-4 py-8">
         <PageHeader
           title="Historical Explorer"
-          description="Loading 29 years of Sunshine List data..."
+          description="Loading Sunshine List data..."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -235,36 +234,20 @@ export default function HistoryPage() {
       {/* Header */}
       <PageHeader
         title="Historical Explorer"
-        description="29 years of Ontario Sunshine List data — from 4,584 employees in 1996 to 377K+ in 2024"
+        description={`${yearsOfData} years of Ontario Sunshine List data (${firstYear?.year}–${latestYear?.year})`}
       />
 
       <DataCaveatBanner />
 
       {/* ----------------------------------------------------------------- */}
-      {/* $100K Threshold Erosion Banner */}
+      {/* $100K Threshold Note */}
       {/* ----------------------------------------------------------------- */}
-      <Card className="border-sunshine-400 bg-gradient-to-r from-sunshine-200/30 to-cream-50">
-        <CardContent className="flex flex-col items-center gap-4 p-6 sm:flex-row sm:justify-center">
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-sunshine-700">
-              $100K in 1996
-            </p>
-            <p className="text-3xl font-bold text-sunshine-900">
-              {formatCurrency(SUNSHINE_THRESHOLD)}
-            </p>
-          </div>
-          <ArrowRight className="h-8 w-8 shrink-0 text-sunshine-600" />
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-sunshine-700">
-              Equivalent in 2024 dollars
-            </p>
-            <p className="text-3xl font-bold text-sunshine-900">
-              {formatCurrency(thresholdToday)}
-            </p>
-          </div>
-          <p className="max-w-xs text-center text-sm text-sunshine-700 sm:ml-4 sm:text-left">
-            The threshold has never been adjusted for inflation, meaning it captures
-            far more workers today than originally intended.
+      <Card className="border-sunshine-300 bg-sunshine-50/50">
+        <CardContent className="flex items-center gap-3 p-4">
+          <DollarSign className="h-5 w-5 shrink-0 text-sunshine-600" />
+          <p className="text-sm text-sunshine-800">
+            The <strong>$100,000 disclosure threshold</strong> hasn&apos;t changed since the Sunshine List was created in 1996,
+            meaning it captures far more workers today than originally intended due to inflation.
           </p>
         </CardContent>
       </Card>
@@ -276,12 +259,12 @@ export default function HistoryPage() {
         <StatCard
           icon={<Calendar className="h-5 w-5 text-sunshine-600" />}
           label="Years of Data"
-          value="29"
-          sub={`${FIRST_YEAR} \u2013 ${LATEST_YEAR}`}
+          value={String(yearsOfData)}
+          sub={`${firstYear.year} \u2013 ${latestYear.year}`}
         />
         <StatCard
           icon={<Users className="h-5 w-5 text-sunshine-600" />}
-          label="Employees (2024)"
+          label={`Employees (${latestYear.year})`}
           value={formatNumber(latestYear.totalEmployees)}
           sub="On the list"
         />
@@ -289,11 +272,11 @@ export default function HistoryPage() {
           icon={<TrendingUp className="h-5 w-5 text-sunshine-600" />}
           label="Headcount Growth"
           value={formatPercent(headcountGrowth, 0)}
-          sub="1996 \u2192 2024"
+          sub={`${firstYear.year} → ${latestYear.year}`}
         />
         <StatCard
           icon={<DollarSign className="h-5 w-5 text-sunshine-600" />}
-          label="Median Salary (2024)"
+          label={`Median Salary (${latestYear.year})`}
           value={formatCurrency(latestYear.medianSalary)}
           sub="Nominal"
         />
@@ -334,7 +317,7 @@ export default function HistoryPage() {
             adjusted ? 'text-sunshine-900' : 'text-sunshine-600'
           )}
         >
-          Inflation-Adjusted (2024$)
+          Inflation-Adjusted (2025$)
         </span>
       </div>
 
@@ -542,16 +525,16 @@ export default function HistoryPage() {
       </ChartContainer>
 
       {/* ----------------------------------------------------------------- */}
-      {/* Notable Milestones */}
+      {/* Year-by-Year Summary */}
       {/* ----------------------------------------------------------------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Notable Milestones</CardTitle>
+          <CardTitle className="text-base font-semibold">Year-by-Year Summary</CardTitle>
         </CardHeader>
         <CardContent>
           <ol className="relative border-l-2 border-sunshine-400 pl-6">
-            {MILESTONES.map((m, i) => (
-              <li key={m.year} className={cn('pb-6', i === MILESTONES.length - 1 && 'pb-0')}>
+            {milestones.map((m, i) => (
+              <li key={m.year} className={cn('pb-6', i === milestones.length - 1 && 'pb-0')}>
                 <span className="absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full bg-sunshine-400 ring-4 ring-white" />
                 <p className="text-sm font-semibold text-sunshine-900">
                   {m.year} &mdash; {m.label}

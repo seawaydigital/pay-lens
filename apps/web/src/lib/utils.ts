@@ -11,7 +11,7 @@ export function formatCurrency(amount: number, adjusted = false): string {
     currency: 'CAD',
     maximumFractionDigits: 0,
   }).format(amount);
-  return adjusted ? `${formatted} (2024$)` : formatted;
+  return adjusted ? `${formatted} (2025$)` : formatted;
 }
 
 export function formatNumber(num: number): string {

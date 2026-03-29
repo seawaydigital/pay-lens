@@ -5,9 +5,9 @@ export const SITE_DESCRIPTION =
 
 export const SUNSHINE_THRESHOLD = 100_000;
 
-export const FIRST_YEAR = 1996;
+export const FIRST_YEAR = 2023;
 
-export const LATEST_YEAR = 2024;
+export const LATEST_YEAR = 2025;
 
 export const NAV_ITEMS = [
   { label: 'Dashboard', href: '/' },

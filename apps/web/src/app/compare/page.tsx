@@ -88,7 +88,7 @@ function generateSalaryBands(employers: EmployerIndex[]): SalaryBand[] {
 }
 
 function generateHeadcountTrend(employers: EmployerIndex[]): HeadcountTrend[] {
-  const years = [2019, 2020, 2021, 2022, 2023, 2024];
+  const years = [2023, 2024, 2025];
   return years.map((year) => {
     const row: HeadcountTrend = { year };
     employers.forEach((emp) => {

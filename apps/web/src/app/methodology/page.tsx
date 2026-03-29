@@ -62,7 +62,7 @@ const PIPELINE_STEPS = [
     title: 'Enrich',
     icon: Database,
     description:
-      'Attach region tags, assign role families via fuzzy matching, and compute CPI-adjusted salaries in constant 2024 dollars.',
+      'Attach region tags, assign role families via fuzzy matching, and compute CPI-adjusted salaries in constant 2025 dollars.',
   },
   {
     num: 4,
@@ -98,11 +98,11 @@ const TITLE_EXAMPLES = [
 /* ------------------------------------------------------------------ */
 
 const CPI_SAMPLES = [
-  { year: 1996, factor: 1.637, nominal: 100_000, adjusted: 163_700 },
-  { year: 2000, factor: 1.527, nominal: 100_000, adjusted: 152_700 },
-  { year: 2010, factor: 1.25, nominal: 100_000, adjusted: 125_000 },
-  { year: 2020, factor: 1.06, nominal: 100_000, adjusted: 106_000 },
-  { year: 2024, factor: 1.0, nominal: 100_000, adjusted: 100_000 },
+  { year: 1996, factor: 1.670, nominal: 100_000, adjusted: 167_000 },
+  { year: 2000, factor: 1.558, nominal: 100_000, adjusted: 155_800 },
+  { year: 2010, factor: 1.275, nominal: 100_000, adjusted: 127_500 },
+  { year: 2020, factor: 1.081, nominal: 100_000, adjusted: 108_100 },
+  { year: 2025, factor: 1.0, nominal: 100_000, adjusted: 100_000 },
 ] as const;
 
 /* ------------------------------------------------------------------ */
@@ -248,7 +248,7 @@ export default function MethodologyPage() {
                 <strong>Note:</strong> The $100,000 disclosure threshold has
                 not changed since the Act was introduced in 1996. In
                 inflation-adjusted terms, $100,000 in 1996 is equivalent to
-                approximately $163,700 in 2024 dollars. This means the list
+                approximately $167,000 in 2025 dollars. This means the list
                 captures a growing share of public sector workers each year,
                 not because salaries are necessarily rising faster, but because
                 the threshold has eroded in real terms.
@@ -477,17 +477,17 @@ export default function MethodologyPage() {
             </SectionHeading>
             <Prose>
               <p>
-                Comparing a salary from 1996 to one from 2024 in raw
+                Comparing a salary from 1996 to one from 2025 in raw
                 (nominal) dollars is misleading because the purchasing power
                 of a dollar changes over time. Pay Lens converts all
                 historical salaries to{' '}
-                <strong>constant 2024 Canadian dollars</strong> using the
+                <strong>constant 2025 Canadian dollars</strong> using the
                 Consumer Price Index (CPI) published by the Bank of Canada.
               </p>
               <p>The adjustment formula is:</p>
               <div className="rounded-md border border-sunshine-200 bg-sunshine-200/20 px-4 py-3">
                 <p className="font-mono text-sm text-sunshine-900">
-                  adjusted = nominal &times; (CPI<sub>2024</sub> / CPI
+                  adjusted = nominal &times; (CPI<sub>2025</sub> / CPI
                   <sub>year</sub>)
                 </p>
               </div>
@@ -512,7 +512,7 @@ export default function MethodologyPage() {
                       $100K Nominal
                     </th>
                     <th className="px-4 py-2.5 text-right font-semibold text-sunshine-900 border-b border-sunshine-200">
-                      In 2024 Dollars
+                      In 2025 Dollars
                     </th>
                   </tr>
                 </thead>
@@ -549,7 +549,7 @@ export default function MethodologyPage() {
                   Bank of Canada
                 </OutboundLink>{' '}
                 via their Valet API. The full adjustment table covering every
-                year from 1996 to 2024 is embedded in the application source
+                year from 1996 to 2025 is embedded in the application source
                 code.
               </p>
             </Prose>
@@ -674,7 +674,7 @@ export default function MethodologyPage() {
                 {
                   title: 'Eroding threshold',
                   detail:
-                    'The $100,000 threshold set in 1996 is equivalent to approximately $163,700 in 2024 dollars. The list has grown from roughly 4,500 records in 1996 to over 260,000 today, largely because inflation has pushed more employees above a fixed nominal line.',
+                    'The $100,000 threshold set in 1996 is equivalent to approximately $167,000 in 2025 dollars. The list has grown from roughly 4,500 records in 1996 to over 260,000 today, largely because inflation has pushed more employees above a fixed nominal line.',
                 },
                 {
                   title: 'No private sector comparison',

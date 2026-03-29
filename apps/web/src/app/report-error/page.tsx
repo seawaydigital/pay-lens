@@ -17,7 +17,7 @@ const ERROR_TYPES = [
   'Other',
 ] as const;
 
-const YEARS = Array.from({ length: 29 }, (_, i) => 2024 - i);
+const YEARS = [2025, 2024, 2023];
 
 interface FormData {
   errorType: string;

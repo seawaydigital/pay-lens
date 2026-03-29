@@ -17,12 +17,9 @@ interface SectorTrendChartProps {
 }
 
 const trendData = [
-  { year: 2019, headcount: 32400 },
-  { year: 2020, headcount: 35100 },
-  { year: 2021, headcount: 38200 },
-  { year: 2022, headcount: 41500 },
   { year: 2023, headcount: 44800 },
   { year: 2024, headcount: 48200 },
+  { year: 2025, headcount: 51600 },
 ];
 
 interface TrendTooltipProps {

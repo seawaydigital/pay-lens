@@ -10,7 +10,7 @@ export function useInflation() {
 
   const toggle = () => setAdjusted(!adjusted);
 
-  const label = adjusted ? '2024 dollars' : 'Nominal dollars';
+  const label = adjusted ? '2025 dollars' : 'Nominal dollars';
 
   return { adjusted, toggle, label };
 }
