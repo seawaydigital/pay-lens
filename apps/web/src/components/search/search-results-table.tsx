@@ -117,6 +117,7 @@ export function SearchResultsTable({
                 {sortableHeader('Employer', 'employer')}
               </th>
               <th className="px-4 py-3 text-left text-sunshine-900">Sector</th>
+              <th className="px-4 py-3 text-center text-sunshine-900">Year</th>
               <th className="px-4 py-3 text-right text-sunshine-900">
                 {sortableHeader('Salary', 'salary')}
               </th>
@@ -151,6 +152,9 @@ export function SearchResultsTable({
                   <Badge variant="secondary" className="text-xs">
                     {d.sector}
                   </Badge>
+                </td>
+                <td className="px-4 py-3 text-center text-sunshine-600 text-xs">
+                  {d.year}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-sunshine-800">
                   {formatCurrency(d.salaryPaid)}

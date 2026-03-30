@@ -153,12 +153,12 @@ function PersonDetailContent() {
           sectorResult,
           colleagueResult,
         ] = await Promise.all([
-          // 2. Salary history — all records with same name
+          // 2. Salary history — all records with same name (eq uses index)
           supabase
             .from('disclosures')
             .select('*')
-            .ilike('first_name', disc.first_name)
-            .ilike('last_name', disc.last_name)
+            .eq('last_name', disc.last_name)
+            .eq('first_name', disc.first_name)
             .order('year', { ascending: true }),
 
           // 3. Top peers with same job title (for display table)
@@ -204,9 +204,9 @@ function PersonDetailContent() {
           supabase
             .from('sectors')
             .select('median_salary')
-            .ilike('name', disc.sector)
+            .eq('name', disc.sector)
             .limit(1)
-            .single(),
+            .maybeSingle(),
 
           // 7. Same-employer colleagues in related roles (top 5 by salary, excluding self)
           supabase
