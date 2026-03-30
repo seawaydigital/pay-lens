@@ -161,7 +161,7 @@ export default function SearchPage() {
         setTotal(serverTotal);
       })
       .catch((err) => {
-        if (!cancelled) console.error('Failed to load disclosures:', err);
+        if (!cancelled) console.error('Failed to load disclosures:', err?.message || err?.code || JSON.stringify(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -308,9 +308,9 @@ export default function SearchPage() {
         <Card className="mt-6 border-sunshine-200">
           <CardContent className="flex flex-wrap items-center gap-6 py-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-sunshine-600">Results:</span>
+              <span className="text-sm text-sunshine-600">Showing:</span>
               <Badge variant="secondary" className="font-mono">
-                {formatNumber(total)}
+                {disclosures.length} results
               </Badge>
             </div>
             <div className="flex items-center gap-2">

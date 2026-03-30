@@ -44,13 +44,12 @@ export async function searchDisclosures({
   page = 1,
   pageSize = 25,
 }: SearchParams): Promise<SearchResult> {
-  const hasFilters = !!(query?.trim() || sector || year || regionId || minSalary || maxSalary);
-  let q = supabase
-    .from('disclosures')
-    .select('*', { count: hasFilters ? 'exact' : 'estimated' });
+  const hasSearch = !!query?.trim();
 
-  if (query.trim()) {
-    // Use full-text search when query provided
+  // Build data query (no count — faster)
+  let q = supabase.from('disclosures').select('*');
+
+  if (hasSearch) {
     q = q.textSearch('fts', query.trim().split(/\s+/).join(' & '));
   }
   if (sector) q = q.eq('sector', sector);
@@ -62,9 +61,16 @@ export async function searchDisclosures({
   const from = (page - 1) * pageSize;
   q = q.order('salary_paid', { ascending: false }).range(from, from + pageSize - 1);
 
-  const { data, error, count } = await q;
+  const { data, error } = await q;
   if (error) throw error;
-  return { data: data ?? [], total: count ?? 0 };
+
+  // Estimate total: if we got a full page, there are more results.
+  // Use the page data length to infer whether there are more pages.
+  const total = (data?.length ?? 0) < pageSize
+    ? from + (data?.length ?? 0)  // Last page — exact count
+    : from + pageSize + 1;        // More pages exist — show "25+" style
+
+  return { data: data ?? [], total };
 }
 
 export async function getDisclosureById(id: string): Promise<Disclosure | null> {
