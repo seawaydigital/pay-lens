@@ -39,6 +39,21 @@ __pycache__/
 packages/etl/data/
 *.parquet
 
+# Admin/loader scripts (contain service role keys — never commit)
+apps/web/load-csv.mjs
+apps/web/append-csv.mjs
+apps/web/bulk-load.mjs
+apps/web/clear-and-reload.mjs
+apps/web/reload-all.mjs
+apps/web/seed-supabase.mjs
+apps/web/setup-db-functions.mjs
+apps/web/setup-aggregation.mjs
+apps/web/populate-regions.mjs
+apps/web/regenerate-via-sql.mjs
+apps/web/regenerate-from-real-data.mjs
+apps/web/retry-*.mjs
+scripts/seed-supabase.mjs
+
 # Pagefind output
 apps/web/out/pagefind/
 
