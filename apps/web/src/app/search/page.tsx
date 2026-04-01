@@ -20,7 +20,7 @@ import {
   type SortField,
   type SortDirection,
 } from '@/components/search/search-results-table';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { exportToCsv } from '@/lib/csv-export';
 import { ExportButton } from '@/components/shared/export-button';
 import { searchDisclosures, getSectors } from '@/lib/db';
