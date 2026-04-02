@@ -24,7 +24,7 @@ import { formatCurrency } from '@/lib/utils';
 import { exportToCsv } from '@/lib/csv-export';
 import { ExportButton } from '@/components/shared/export-button';
 import { searchDisclosures, getSectors } from '@/lib/db';
-import type { Disclosure as DbDisclosure, Sector } from '@/lib/supabase';
+import type { Disclosure as DbDisclosure, Sector } from '@/lib/turso';
 
 const YEARS = [2025, 2024, 2023];
 const PAGE_SIZE = 25;

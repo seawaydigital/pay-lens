@@ -29,8 +29,8 @@ import {
 import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { formatCurrency, formatNumber } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
-import type { Disclosure } from '@/lib/supabase';
+import { turso } from '@/lib/turso';
+import type { Disclosure } from '@/lib/turso';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 function StatCard({
@@ -131,15 +131,27 @@ function PersonDetailContent() {
     if (!id) { setLoading(false); setNotFound(true); return; }
 
     async function load() {
+      // Helper to convert libSQL rows (which may have bigint values) to plain objects
+      function toRow<T>(row: Record<string, unknown>): T {
+        const obj: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(row)) {
+          obj[k] = typeof v === 'bigint' ? Number(v) : v;
+        }
+        return obj as T;
+      }
+      function toRows<T>(rows: Array<Record<string, unknown>>): T[] {
+        return rows.map((r) => toRow<T>(r));
+      }
+
       try {
         // 1. Fetch the specific disclosure record
-        const { data: disc, error } = await supabase
-          .from('disclosures')
-          .select('*')
-          .eq('id', id)
-          .single();
+        const discResult = await turso.execute({
+          sql: 'SELECT * FROM disclosures WHERE id = ?',
+          args: [id!],
+        });
 
-        if (error || !disc) { setNotFound(true); setLoading(false); return; }
+        if (discResult.rows.length === 0) { setNotFound(true); setLoading(false); return; }
+        const disc = toRow<Disclosure>(discResult.rows[0] as unknown as Record<string, unknown>);
         setPerson(disc);
 
         // Run all secondary queries in parallel
@@ -153,78 +165,65 @@ function PersonDetailContent() {
           sectorResult,
           colleagueResult,
         ] = await Promise.all([
-          // 2. Salary history — all records with same name (eq uses index)
-          supabase
-            .from('disclosures')
-            .select('*')
-            .eq('last_name', disc.last_name)
-            .eq('first_name', disc.first_name)
-            .order('year', { ascending: true }),
+          // 2. Salary history — all records with same name
+          turso.execute({
+            sql: 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC',
+            args: [disc.first_name, disc.last_name],
+          }),
 
           // 3. Top peers with same job title (for display table)
-          supabase
-            .from('disclosures')
-            .select('*')
-            .eq('year', disc.year)
-            .eq('job_title', disc.job_title)
-            .order('salary_paid', { ascending: false })
-            .limit(10),
+          turso.execute({
+            sql: 'SELECT * FROM disclosures WHERE year = ? AND job_title = ? ORDER BY salary_paid DESC LIMIT 10',
+            args: [disc.year, disc.job_title],
+          }),
 
           // 4a. Total peers with same title (for percentile)
-          supabase
-            .from('disclosures')
-            .select('*', { count: 'exact', head: true })
-            .eq('year', disc.year)
-            .eq('job_title', disc.job_title),
+          turso.execute({
+            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND job_title = ?',
+            args: [disc.year, disc.job_title],
+          }),
 
           // 4b. Peers earning less than or equal (for percentile)
-          supabase
-            .from('disclosures')
-            .select('*', { count: 'exact', head: true })
-            .eq('year', disc.year)
-            .eq('job_title', disc.job_title)
-            .lte('salary_paid', disc.salary_paid),
+          turso.execute({
+            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND job_title = ? AND salary_paid <= ?',
+            args: [disc.year, disc.job_title, disc.salary_paid],
+          }),
 
           // 5a. Employees at same employer earning more (for rank)
-          supabase
-            .from('disclosures')
-            .select('*', { count: 'exact', head: true })
-            .eq('year', disc.year)
-            .eq('employer_id', disc.employer_id)
-            .gt('salary_paid', disc.salary_paid),
+          turso.execute({
+            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND employer_id = ? AND salary_paid > ?',
+            args: [disc.year, disc.employer_id ?? '', disc.salary_paid],
+          }),
 
           // 5b. Total employees at same employer
-          supabase
-            .from('disclosures')
-            .select('*', { count: 'exact', head: true })
-            .eq('year', disc.year)
-            .eq('employer_id', disc.employer_id),
+          turso.execute({
+            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND employer_id = ?',
+            args: [disc.year, disc.employer_id ?? ''],
+          }),
 
           // 6. Sector median
-          supabase
-            .from('sectors')
-            .select('median_salary')
-            .eq('name', disc.sector)
-            .limit(1)
-            .maybeSingle(),
+          turso.execute({
+            sql: 'SELECT median_salary FROM sectors WHERE name = ? LIMIT 1',
+            args: [disc.sector],
+          }),
 
           // 7. Same-employer colleagues in related roles (top 5 by salary, excluding self)
-          supabase
-            .from('disclosures')
-            .select('*')
-            .eq('year', disc.year)
-            .eq('employer_id', disc.employer_id)
-            .neq('id', disc.id)
-            .order('salary_paid', { ascending: false })
-            .limit(5),
+          turso.execute({
+            sql: 'SELECT * FROM disclosures WHERE year = ? AND employer_id = ? AND id != ? ORDER BY salary_paid DESC LIMIT 5',
+            args: [disc.year, disc.employer_id ?? '', disc.id],
+          }),
         ]);
 
-        setHistory(histResult.data ?? []);
-        setPeers(peerTopResult.data ?? []);
+        setHistory(toRows<Disclosure>(histResult.rows as unknown as Array<Record<string, unknown>>));
+        setPeers(toRows<Disclosure>(peerTopResult.rows as unknown as Array<Record<string, unknown>>));
 
-        // Percentile: (peers earning ≤ you) / total peers × 100
-        const totalPeers = peerTotalResult.count ?? 0;
-        const peersBelow = peerBelowResult.count ?? 0;
+        // Percentile: (peers earning <= you) / total peers x 100
+        const totalPeers = Number(
+          (peerTotalResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
+        );
+        const peersBelow = Number(
+          (peerBelowResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
+        );
         if (totalPeers > 1) {
           setPeerStats({
             totalPeers,
@@ -234,18 +233,25 @@ function PersonDetailContent() {
         }
 
         // Employer rank
-        const empAbove = empRankAboveResult.count ?? 0;
-        const empTotal = empTotalResult.count ?? 0;
+        const empAbove = Number(
+          (empRankAboveResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
+        );
+        const empTotal = Number(
+          (empTotalResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
+        );
         if (empTotal > 0) {
           setEmployerRank({ rank: empAbove + 1, total: empTotal });
         }
 
         // Sector median
-        if (sectorResult.data?.median_salary) {
-          setSectorMedian(sectorResult.data.median_salary);
+        if (sectorResult.rows.length > 0) {
+          const medianVal = (sectorResult.rows[0] as unknown as Record<string, unknown>)?.median_salary;
+          if (medianVal != null) {
+            setSectorMedian(Number(medianVal));
+          }
         }
 
-        setColleagues(colleagueResult.data ?? []);
+        setColleagues(toRows<Disclosure>(colleagueResult.rows as unknown as Array<Record<string, unknown>>));
       } catch {
         setNotFound(true);
       } finally {

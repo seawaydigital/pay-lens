@@ -39,7 +39,7 @@ __pycache__/
 packages/etl/data/
 *.parquet
 
-# Admin/loader scripts (contain service role keys — never commit)
+# Admin/loader scripts (contain auth tokens — never commit)
 apps/web/load-csv.mjs
 apps/web/append-csv.mjs
 apps/web/bulk-load.mjs
@@ -52,6 +52,8 @@ apps/web/populate-regions.mjs
 apps/web/regenerate-via-sql.mjs
 apps/web/regenerate-from-real-data.mjs
 apps/web/retry-*.mjs
+apps/web/turso-setup.mjs
+apps/web/turso-rebuild.mjs
 scripts/seed-supabase.mjs
 
 # Pagefind output

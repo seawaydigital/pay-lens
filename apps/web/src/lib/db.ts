@@ -1,10 +1,10 @@
 /**
  * Pay Lens — Data Access Layer
  *
- * All Supabase queries live here. Pages import from this module,
- * never from supabase.ts directly, so the query surface is easy to audit.
+ * All Turso/libSQL queries live here. Pages import from this module,
+ * never from turso.ts directly, so the query surface is easy to audit.
  */
-import { supabase } from './supabase';
+import { turso } from './turso';
 import type {
   Disclosure,
   Employer,
@@ -14,7 +14,30 @@ import type {
   HistoricalYear,
   StatsSummary,
   Benchmark,
-} from './supabase';
+} from './turso';
+
+// Re-export types so consumers can import from db.ts or turso.ts
+export type { Disclosure, Employer, Sector, Region, Anomaly, HistoricalYear, StatsSummary, Benchmark };
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Convert a Turso row (which may have bigint/string values) to a plain object with proper types */
+function rowToObject<T>(row: Record<string, unknown>): T {
+  const obj: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    // libSQL returns bigints for INTEGER columns; convert to number
+    if (typeof value === 'bigint') {
+      obj[key] = Number(value);
+    } else {
+      obj[key] = value;
+    }
+  }
+  return obj as T;
+}
+
+function rowsToArray<T>(rows: Array<Record<string, unknown>>): T[] {
+  return rows.map((r) => rowToObject<T>(r));
+}
 
 // ── Disclosures ────────────────────────────────────────────────────────────────
 
@@ -44,185 +67,231 @@ export async function searchDisclosures({
   page = 1,
   pageSize = 25,
 }: SearchParams): Promise<SearchResult> {
+  const conditions: string[] = [];
+  const args: (string | number)[] = [];
+
   const hasSearch = !!query?.trim();
 
-  // Build data query (no count — faster)
-  let q = supabase.from('disclosures').select('*');
-
   if (hasSearch) {
-    q = q.textSearch('fts', query.trim().split(/\s+/).join(' & '));
+    // Use LIKE with wildcards for each search term
+    const terms = query.trim().split(/\s+/);
+    for (const term of terms) {
+      conditions.push(
+        `(LOWER(first_name) LIKE LOWER(?) OR LOWER(last_name) LIKE LOWER(?) OR LOWER(employer) LIKE LOWER(?) OR LOWER(job_title) LIKE LOWER(?))`
+      );
+      const wildcard = `%${term}%`;
+      args.push(wildcard, wildcard, wildcard, wildcard);
+    }
   }
-  if (sector) q = q.eq('sector', sector);
-  if (year) q = q.eq('year', year);
-  if (regionId) q = q.eq('region_id', regionId);
-  if (minSalary) q = q.gte('salary_paid', minSalary);
-  if (maxSalary) q = q.lte('salary_paid', maxSalary);
 
-  const from = (page - 1) * pageSize;
-  q = q.order('salary_paid', { ascending: false }).range(from, from + pageSize - 1);
+  if (sector) {
+    conditions.push('sector = ?');
+    args.push(sector);
+  }
+  if (year) {
+    conditions.push('year = ?');
+    args.push(year);
+  }
+  if (regionId) {
+    conditions.push('region_id = ?');
+    args.push(regionId);
+  }
+  if (minSalary) {
+    conditions.push('salary_paid >= ?');
+    args.push(minSalary);
+  }
+  if (maxSalary) {
+    conditions.push('salary_paid <= ?');
+    args.push(maxSalary);
+  }
 
-  const { data, error } = await q;
-  if (error) throw error;
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const offset = (page - 1) * pageSize;
+
+  const sql = `SELECT * FROM disclosures ${where} ORDER BY salary_paid DESC LIMIT ? OFFSET ?`;
+  args.push(pageSize, offset);
+
+  const result = await turso.execute({ sql, args });
+  const data = rowsToArray<Disclosure>(result.rows as unknown as Array<Record<string, unknown>>);
 
   // Estimate total: if we got a full page, there are more results.
-  // Use the page data length to infer whether there are more pages.
-  const total = (data?.length ?? 0) < pageSize
-    ? from + (data?.length ?? 0)  // Last page — exact count
-    : from + pageSize + 1;        // More pages exist — show "25+" style
+  const total =
+    data.length < pageSize
+      ? offset + data.length // Last page — exact count
+      : offset + pageSize + 1; // More pages exist — show "25+" style
 
-  return { data: data ?? [], total };
+  return { data, total };
 }
 
 export async function getDisclosureById(id: string): Promise<Disclosure | null> {
-  const { data, error } = await supabase
-    .from('disclosures')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) return null;
-  return data;
+  const result = await turso.execute({ sql: 'SELECT * FROM disclosures WHERE id = ?', args: [id] });
+  if (result.rows.length === 0) return null;
+  return rowToObject<Disclosure>(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function getPersonDisclosures(firstName: string, lastName: string): Promise<Disclosure[]> {
-  const { data, error } = await supabase
-    .from('disclosures')
-    .select('*')
-    .ilike('first_name', firstName)
-    .ilike('last_name', lastName)
-    .order('year', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const result = await turso.execute({
+    sql: 'SELECT * FROM disclosures WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?) ORDER BY year DESC',
+    args: [firstName, lastName],
+  });
+  return rowsToArray<Disclosure>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
 // ── Employers ─────────────────────────────────────────────────────────────────
 
 export async function getEmployers(sector?: string): Promise<Employer[]> {
-  let q = supabase
-    .from('employers')
-    .select('*')
-    .order('headcount', { ascending: false });
+  let sql = 'SELECT * FROM employers';
+  const args: string[] = [];
 
-  if (sector) q = q.eq('sector', sector);
+  if (sector) {
+    sql += ' WHERE sector = ?';
+    args.push(sector);
+  }
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+  sql += ' ORDER BY headcount DESC';
+
+  const result = await turso.execute({ sql, args });
+  return rowsToArray<Employer>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
 export async function getEmployerById(id: string): Promise<Employer | null> {
-  const { data, error } = await supabase
-    .from('employers')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) return null;
-  return data;
+  const result = await turso.execute({ sql: 'SELECT * FROM employers WHERE id = ?', args: [id] });
+  if (result.rows.length === 0) return null;
+  return rowToObject<Employer>(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function getEmployerDisclosures(employerId: string, year?: number): Promise<Disclosure[]> {
-  let q = supabase
-    .from('disclosures')
-    .select('*')
-    .eq('employer_id', employerId)
-    .order('salary_paid', { ascending: false });
+  let sql = 'SELECT * FROM disclosures WHERE employer_id = ?';
+  const args: (string | number)[] = [employerId];
 
-  if (year) q = q.eq('year', year);
+  if (year) {
+    sql += ' AND year = ?';
+    args.push(year);
+  }
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+  sql += ' ORDER BY salary_paid DESC';
+
+  const result = await turso.execute({ sql, args });
+  return rowsToArray<Disclosure>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
 // ── Sectors ───────────────────────────────────────────────────────────────────
 
 export async function getSectors(): Promise<Sector[]> {
-  const { data, error } = await supabase
-    .from('sectors')
-    .select('*')
-    .order('employee_count', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const result = await turso.execute('SELECT * FROM sectors ORDER BY employee_count DESC');
+  return rowsToArray<Sector>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
 export async function getSectorById(id: string): Promise<Sector | null> {
-  const { data, error } = await supabase
-    .from('sectors')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) return null;
-  return data;
+  const result = await turso.execute({ sql: 'SELECT * FROM sectors WHERE id = ?', args: [id] });
+  if (result.rows.length === 0) return null;
+  return rowToObject<Sector>(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 // ── Regions ───────────────────────────────────────────────────────────────────
 
 export async function getRegions(): Promise<Region[]> {
-  const { data, error } = await supabase
-    .from('regions')
-    .select('*')
-    .order('employee_count', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const result = await turso.execute('SELECT * FROM regions ORDER BY employee_count DESC');
+  return rowsToArray<Region>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
 // ── Anomalies ─────────────────────────────────────────────────────────────────
 
 export async function getAnomalies(flag?: Anomaly['flag']): Promise<Anomaly[]> {
-  let q = supabase
-    .from('anomalies')
-    .select('*')
-    .order('change_percent', { ascending: false });
+  let sql = 'SELECT * FROM anomalies';
+  const args: string[] = [];
 
-  if (flag) q = q.eq('flag', flag);
+  if (flag) {
+    sql += ' WHERE flag = ?';
+    args.push(flag);
+  }
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+  sql += ' ORDER BY change_percent DESC';
+
+  const result = await turso.execute({ sql, args });
+  return rowsToArray<Anomaly>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
 // ── Historical Series ─────────────────────────────────────────────────────────
 
 export async function getHistoricalSeries(): Promise<HistoricalYear[]> {
-  const { data, error } = await supabase
-    .from('historical_series')
-    .select('*')
-    .order('year', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  const result = await turso.execute('SELECT * FROM historical_series ORDER BY year ASC');
+  return rowsToArray<HistoricalYear>(result.rows as unknown as Array<Record<string, unknown>>).map((row) => {
+    // The sectors column may be stored as a JSON string in SQLite
+    if (typeof row.sectors === 'string') {
+      try {
+        row.sectors = JSON.parse(row.sectors);
+      } catch {
+        row.sectors = {};
+      }
+    }
+    return row;
+  });
 }
 
 // ── Stats Summary ─────────────────────────────────────────────────────────────
 
 export async function getStatsSummary(): Promise<StatsSummary | null> {
-  const { data, error } = await supabase
-    .from('stats_summary')
-    .select('*')
-    .eq('id', 1)
-    .single();
-  if (error) return null;
-  return data;
+  const result = await turso.execute({ sql: 'SELECT * FROM stats_summary WHERE id = ?', args: [1] });
+  if (result.rows.length === 0) return null;
+  return rowToObject<StatsSummary>(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 // ── Benchmarks ────────────────────────────────────────────────────────────────
 
 export async function getBenchmarks(): Promise<Benchmark[]> {
-  const { data, error } = await supabase
-    .from('benchmarks')
-    .select('*')
-    .order('role', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  const result = await turso.execute('SELECT * FROM benchmarks ORDER BY role ASC');
+  return rowsToArray<Benchmark>(result.rows as unknown as Array<Record<string, unknown>>).map((row) => {
+    // Parse JSON columns stored as strings in SQLite
+    if (typeof row.institution_breakdown === 'string') {
+      try {
+        row.institution_breakdown = JSON.parse(row.institution_breakdown);
+      } catch {
+        row.institution_breakdown = [];
+      }
+    }
+    if (typeof row.yearly_trend === 'string') {
+      try {
+        row.yearly_trend = JSON.parse(row.yearly_trend);
+      } catch {
+        row.yearly_trend = [];
+      }
+    }
+    return row;
+  });
 }
 
 export async function getBenchmarkByRole(role: string, regionId?: string): Promise<Benchmark | null> {
-  let q = supabase
-    .from('benchmarks')
-    .select('*')
-    .ilike('role', role);
+  let sql = 'SELECT * FROM benchmarks WHERE LOWER(role) = LOWER(?)';
+  const args: string[] = [role];
 
-  if (regionId) q = q.eq('region_id', regionId);
+  if (regionId) {
+    sql += ' AND region_id = ?';
+    args.push(regionId);
+  }
 
-  const { data, error } = await q.limit(1).single();
-  if (error) return null;
-  return data;
+  sql += ' LIMIT 1';
+
+  const result = await turso.execute({ sql, args });
+  if (result.rows.length === 0) return null;
+
+  const row = rowToObject<Benchmark>(result.rows[0] as unknown as Record<string, unknown>);
+
+  // Parse JSON columns
+  if (typeof row.institution_breakdown === 'string') {
+    try {
+      row.institution_breakdown = JSON.parse(row.institution_breakdown);
+    } catch {
+      row.institution_breakdown = [];
+    }
+  }
+  if (typeof row.yearly_trend === 'string') {
+    try {
+      row.yearly_trend = JSON.parse(row.yearly_trend);
+    } catch {
+      row.yearly_trend = [];
+    }
+  }
+
+  return row;
 }

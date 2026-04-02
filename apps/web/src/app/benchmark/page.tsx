@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { ONTARIO_REGIONS } from '@/lib/geo/regions';
 import { getBenchmarks } from '@/lib/db';
-import type { Benchmark } from '@/lib/supabase';
+import type { Benchmark } from '@/lib/turso';
 
 // ---------------------------------------------------------------------------
 // Dynamic imports for chart / visualization components (SSR disabled)

@@ -19,7 +19,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { Button } from '@/components/ui/button';
 import { cn, formatCurrency } from '@/lib/utils';
-import type { Disclosure } from '@/lib/supabase';
+import type { Disclosure } from '@/lib/turso';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

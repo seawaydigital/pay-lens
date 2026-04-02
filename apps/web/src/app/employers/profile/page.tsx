@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 
 import { getEmployerById, getEmployerDisclosures } from '@/lib/db';
-import type { Disclosure } from '@/lib/supabase';
+import type { Disclosure } from '@/lib/turso';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
 import { formatCurrency, formatNumber } from '@/lib/utils';
