@@ -54,7 +54,15 @@ apps/web/regenerate-from-real-data.mjs
 apps/web/retry-*.mjs
 apps/web/turso-setup.mjs
 apps/web/turso-rebuild.mjs
+apps/web/scripts/
 scripts/seed-supabase.mjs
+
+# Generated local databases (never commit)
+apps/web/paylens.db
+apps/web/paylens.db-shm
+apps/web/paylens.db-wal
+apps/web/*.db
+apps/web/*.sqlite
 
 # Pagefind output
 apps/web/out/pagefind/
