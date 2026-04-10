@@ -12,11 +12,11 @@ Pay Lens is a pay transparency platform for Ontario's Sunshine List. It turns th
 - **Monorepo** managed with pnpm + Turborepo
 
 ### Database
-- **Turso (libSQL)** — SQLite at the edge, 9 GB free storage
-- Database name: `paylens`
-- URL: `libsql://paylens-seawaydigital.aws-us-east-1.turso.io`
+- **Turso (libSQL)** — SQLite at the edge, Developer plan ($5.99/mo, 9 GB storage)
+- Database name: `paylens-v2`
+- URL: `libsql://paylens-v2-seawaydigital.aws-us-east-1.turso.io`
 - Client: `@libsql/client/web` (browser-compatible HTTP mode) in app code
-- Client: `@libsql/client/http` in Node.js loader scripts
+- Client: `@libsql/client` in Node.js loader scripts
 - All queries go through `apps/web/src/lib/db.ts` (data access layer)
 - Types defined in `apps/web/src/lib/turso.ts`
 
@@ -29,54 +29,75 @@ Pay Lens is a pay transparency platform for Ontario's Sunshine List. It turns th
 ### Environment Variables
 - `NEXT_PUBLIC_TURSO_DATABASE_URL` — Turso database URL
 - `NEXT_PUBLIC_TURSO_AUTH_TOKEN` — Turso auth token
-- Both set as GitHub secrets for CI/CD deployment
+- Both set as GitHub secrets for CI/CD deployment and in `apps/web/.env.local` for local dev
 
 ## Database Schema
 
 ### Tables
-- `disclosures` — Main table: ~512K rows (2022-2023 loaded, more years pending)
+- `disclosures` — Main table: **1,594,844 rows** (all 5 years: 2021–2025)
   - Columns: id, year, first_name, last_name, job_title, employer, employer_id, sector, salary_paid, taxable_benefits, region_id, region_name
   - Uses deterministic IDs (SHA-256 hash of year+name+employer+salary) for resumable loads
-- `employers` — Aggregated employer stats (headcount, median salary)
-- `sectors` — Sector-level aggregates
-- `regions` — Census Division regions with lat/lng for the map
-- `anomalies` — Flagged unusual salary changes (YoY jumps, multi-employer)
-- `historical_series` — Per-year aggregate stats
+  - Indexed on: year, employer_id, sector, (last_name, first_name), job_title, salary_paid, region_id
+- `disclosures_fts` — FTS5 virtual table (content=disclosures) for fast full-text search
+- `employers` — Aggregated employer stats (3,096 employers)
+- `sectors` — Sector-level aggregates (22 sectors)
+- `regions` — Census Division regions with lat/lng for the map (49 regions)
+- `anomalies` — Flagged unusual salary changes (500 rows: 300 large_increase, 50 large_decrease, 75 new_high_entry, 75 multi_employer)
+- `historical_series` — Per-year aggregate stats (5 rows, 2021–2025)
 - `stats_summary` — Dashboard summary stats (single row)
-- `benchmarks` — Role-based salary benchmarks with percentiles
+- `benchmarks` — Role-based salary benchmarks with percentiles (1,759 rows)
 
-### Derived Tables
-Run `node turso-rebuild.mjs` to regenerate employers, sectors, regions, anomalies, historical_series, stats_summary, and benchmarks from the raw disclosures data. Must be run after loading new CSV data.
+### Data State (complete as of April 2026)
+- 2021: 244,441 rows ✅
+- 2022: 266,937 rows ✅
+- 2023: 300,671 rows ✅
+- 2024: 377,881 rows ✅
+- 2025: 404,914 rows ✅
+- **Total: 1,594,844 disclosures**
 
-## Data Loading
+## Data Pipeline
 
-### Loading CSV data into Turso
+### Full rebuild (when adding new year's data)
 ```bash
 cd apps/web
-node turso-setup.mjs "path/to/csv-file.csv"
-```
-- Creates schema if needed, then loads CSV
-- Uses deterministic IDs — safe to rerun (INSERT OR IGNORE skips existing rows)
-- Uses 4 concurrent batch() calls of 1000 rows each for speed (~20K rows/min)
-- CSV format: Sector, Last Name, First Name, Salary, Benefits, Employer, Job Title, Year
+# Builds complete local paylens.db from all CSVs in ~/Downloads/
+node scripts/build-local-db.mjs
 
-### Rebuilding derived tables
+# Skip CSV loading if only derived tables need rebuilding (~12 min saved):
+SKIP_LOAD=1 node scripts/build-local-db.mjs
+
+# Upload to Turso (requires Turso CLI in WSL Ubuntu):
+wsl -d Ubuntu -- bash -c "cp /mnt/c/Users/ajaustin/Documents/Claude\ Code/Sunshine\ List\ Site/apps/web/paylens.db /tmp/paylens.db && ~/.local/bin/turso db import paylens.db --overwrite"
+```
+
+### Quick anomaly sync (without full rebuild)
 ```bash
 cd apps/web
-node turso-rebuild.mjs
+node scripts/sync-anomalies.mjs
 ```
 
-### Current data state (as of April 2026)
-- 2022: 266,937 rows ✅ complete
-- 2023: ~245,000 rows (partial — Turso free tier write limit hit)
-- 2021, 2024, 2025: NOT YET LOADED
-- Total expected: ~1.6M rows across 5 years (2021-2025)
-- Derived tables: rebuilt for 2022-2023 data
+### Adding FTS5 index to live DB (one-time, or after a new DB import)
+```bash
+cd apps/web
+node scripts/add-fts.mjs
+```
 
-### Pending work
-1. **Resume 2023 load** — rerun `turso-setup.mjs` with 2023 CSV when write limit resets
-2. **Load remaining years** — 2021, 2024, 2025 CSVs need to be loaded
-3. **Rebuild derived tables** after each new year is loaded
+### CSV file locations
+All 5 CSVs are in `~/Downloads/` (Windows). Build script reads from there automatically.
+| Year | File |
+|---|---|
+| 2021 | `tbs-pssd-compendium-salary-disclosed-2021-en-utf-8-2023-01-05.csv` |
+| 2022 | `tbs-pssd-compendium-salary-disclosed-2022-en-utf-8-2024-01-19.csv` |
+| 2023 | `tbs-pssd-compendium-salary-disclosed-2023-en-utf-8-2025-03-26.csv` |
+| 2024 | `tbs-pssd-compendium-salary-disclosed-2024-en-utf-8-2026-01-29.csv` |
+| 2025 | `tbs-pssd-compendium-salary-disclosed-2025-en-utf-8-2026-03-23.csv` |
+
+## Search Architecture
+
+Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'` wildcards (full scan on 1.6M rows):
+- Single term → `last_name LIKE 'term%' OR first_name LIKE 'term%' OR employer LIKE '%term%'`
+- Two terms → `(first_name LIKE 'A%' AND last_name LIKE 'B%') OR (first_name LIKE 'B%' AND last_name LIKE 'A%')`
+- FTS5 virtual table (`disclosures_fts`) exists in the DB for potential future MATCH queries
 
 ## Pages (20 total)
 
@@ -109,17 +130,21 @@ node turso-rebuild.mjs
 | `apps/web/src/lib/constants.ts` | NAV_ITEMS for site header navigation |
 | `apps/web/src/lib/geo/regions.ts` | Ontario Census Division definitions |
 | `apps/web/src/lib/seo.ts` | createMetadata helper |
-| `apps/web/turso-setup.mjs` | Schema creation + CSV data loader |
-| `apps/web/turso-rebuild.mjs` | Rebuild derived tables from disclosures |
-| `apps/web/populate-regions.mjs` | Employer-to-region mapping + region population |
+| `apps/web/scripts/build-local-db.mjs` | **Unified build pipeline** — loads CSVs, builds all derived tables, creates FTS index (gitignored) |
+| `apps/web/scripts/sync-anomalies.mjs` | Rebuild + sync just the anomalies table to live DB (gitignored) |
+| `apps/web/scripts/add-fts.mjs` | One-time migration: add FTS5 virtual table to live DB (gitignored) |
 | `apps/web/next.config.mjs` | basePath for GitHub Pages in production |
 
 ## Important Notes
 
-- **No fabricated data** — all data must come from real Supabase/Turso queries or actual CSV imports. No mock/sample JSON files.
-- **Loader scripts are gitignored** — `turso-setup.mjs`, `turso-rebuild.mjs`, `populate-regions.mjs` etc. contain auth tokens and are in `.gitignore`. Never commit them.
-- **Supabase is deprecated** — migrated to Turso. `supabase.ts` still exists but nothing imports it. Can be deleted.
+- **No fabricated data** — all data must come from real Turso queries or actual CSV imports. No mock/sample JSON files.
+- **Loader scripts are gitignored** — `apps/web/scripts/` contains auth tokens and is in `.gitignore`. Never commit scripts from that directory.
+- **Supabase is fully deprecated** — `supabase.ts` and `supabase/` directory are dead code and can be deleted.
 - **react-leaflet v4** (not v5) — v5 requires React 19, this project uses React 18.
 - **Dashboard uses dynamic import** — `page.tsx` dynamically imports `dashboard-client.tsx` with `ssr: false` to avoid SSR issues.
-- **Employer deduplication** — bilingual employer names (English / French) are normalized to English-only canonical names in the loader scripts.
-- **Region mapping** — employers are mapped to Ontario Census Divisions via pattern matching rules in `populate-regions.mjs`. ~60% coverage, provincial orgs default to Toronto.
+- **Employer deduplication** — bilingual names (English / French) normalized to English-only by `normalizeEmployer()` in build script.
+- **Sector normalization** — en-dash (U+2013) vs ASCII hyphen collisions handled by `normalizeSector()` in build script.
+- **Region mapping** — 49 Ontario Census Divisions, matched via keyword rules in build script. ~60% coverage, provincial orgs default to Toronto.
+- **Turso import** — requires Turso CLI in WSL Ubuntu (`~/.local/bin/turso`) and `sqlite3` package. Token expires ~7 days, renew with `turso config set token <JWT>`.
+- **CI workflow** — pre-existing failure in `packages/etl` hatchling build; doesn't block the Deploy workflow, ignore it.
+- **After DB import** — always run `node scripts/add-fts.mjs` to rebuild the FTS5 index on the new database.

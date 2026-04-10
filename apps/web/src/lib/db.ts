@@ -73,14 +73,21 @@ export async function searchDisclosures({
   const hasSearch = !!query?.trim();
 
   if (hasSearch) {
-    // Use LIKE with wildcards for each search term
-    const terms = query.trim().split(/\s+/);
-    for (const term of terms) {
+    // Use FTS5 MATCH for fast full-text search across first_name, last_name, employer, job_title.
+    // The disclosures_fts virtual table (content=disclosures) is built by scripts/add-fts.mjs.
+    // Each term gets a prefix wildcard (*) so "smith" matches "Smith", "Smithson", etc.
+    const ftsQuery = query
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((t) => t.replace(/[^\w\u00C0-\u024F]/g, '') + '*') // strip FTS5 special chars, add prefix *
+      .filter((t) => t.length > 1) // skip bare '*'
+      .join(' ');
+    if (ftsQuery) {
       conditions.push(
-        `(LOWER(first_name) LIKE LOWER(?) OR LOWER(last_name) LIKE LOWER(?) OR LOWER(employer) LIKE LOWER(?) OR LOWER(job_title) LIKE LOWER(?))`
+        `rowid IN (SELECT rowid FROM disclosures_fts WHERE disclosures_fts MATCH ?)`
       );
-      const wildcard = `%${term}%`;
-      args.push(wildcard, wildcard, wildcard, wildcard);
+      args.push(ftsQuery);
     }
   }
 
