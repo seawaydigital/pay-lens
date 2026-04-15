@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const YEARS = [2025, 2024, 2023] as const;
+const YEARS = [2025, 2024, 2023, 2022, 2021] as const;
 
 const REASONS = [
   'Privacy concern',

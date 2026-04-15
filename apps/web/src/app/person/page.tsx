@@ -353,13 +353,20 @@ function PersonDetailContent() {
       <div className="mt-6 rounded-lg border border-sunshine-200 bg-white p-5 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-sunshine-500">Employer</p>
-          <Link
-            href={`/employers/profile?id=${person.employer_id}`}
-            className="mt-1 inline-flex items-center gap-1.5 text-base font-semibold text-sunshine-700 hover:text-sunshine-900 hover:underline"
-          >
-            <Building2 className="h-4 w-4" />
-            {person.employer}
-          </Link>
+          {person.employer_id ? (
+            <Link
+              href={`/employers/profile?id=${person.employer_id}`}
+              className="mt-1 inline-flex items-center gap-1.5 text-base font-semibold text-sunshine-700 hover:text-sunshine-900 hover:underline"
+            >
+              <Building2 className="h-4 w-4" />
+              {person.employer}
+            </Link>
+          ) : (
+            <p className="mt-1 inline-flex items-center gap-1.5 text-base font-semibold text-sunshine-800">
+              <Building2 className="h-4 w-4" />
+              {person.employer}
+            </p>
+          )}
         </div>
         {person.region_name && (
           <div className="flex items-center gap-1.5 text-sm text-sunshine-600">

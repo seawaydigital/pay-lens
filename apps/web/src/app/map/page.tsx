@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import type { RegionDetail } from '@/components/map/region-detail-panel';
 import { RegionDetailPanel } from '@/components/map/region-detail-panel';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
-import { getRegions, getSectors } from '@/lib/db';
+import { getRegions } from '@/lib/db';
 
 const PayMap = dynamic(
   () => import('@/components/map/pay-map').then((mod) => mod.PayMap),
@@ -24,25 +24,15 @@ const PayMap = dynamic(
   }
 );
 
-interface Sector {
-  id: string;
-  name: string;
-}
-
 export default function MapPage() {
   const [regions, setRegions] = useState<RegionDetail[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [selectedSector, setSelectedSector] = useState('all');
   const [selectedRegion, setSelectedRegion] = useState<RegionDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [regionsData, sectorsData] = await Promise.all([
-          getRegions(),
-          getSectors(),
-        ]);
+        const regionsData = await getRegions();
         setRegions(
           regionsData.map((r) => ({
             regionId: r.region_id,
@@ -52,9 +42,6 @@ export default function MapPage() {
             lat: r.lat,
             lng: r.lng,
           }))
-        );
-        setSectors(
-          sectorsData.map((s) => ({ id: s.id, name: s.name }))
         );
       } catch (err) {
         console.error('Failed to load map data:', err);
@@ -79,30 +66,6 @@ export default function MapPage() {
         title="Regional Pay Map"
         description="Explore median salaries by region across Ontario."
       />
-
-      <div className="mt-4 flex items-center gap-4">
-        <label htmlFor="sector-filter" className="text-sm font-medium text-sunshine-700">
-          Sector
-        </label>
-        <select
-          id="sector-filter"
-          value={selectedSector}
-          onChange={(e) => setSelectedSector(e.target.value)}
-          className="rounded-md border border-sunshine-300 bg-white px-3 py-1.5 text-sm text-sunshine-800 shadow-sm focus:border-sunshine-500 focus:outline-none focus:ring-1 focus:ring-sunshine-500"
-        >
-          <option value="all">All Sectors</option>
-          {sectors.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        {selectedSector !== 'all' && (
-          <p className="text-xs text-sunshine-500 italic">
-            Sector filtering coming soon
-          </p>
-        )}
-      </div>
 
       <div
         className="relative mt-4 overflow-hidden rounded-lg border border-sunshine-200 shadow-sm"

@@ -3,18 +3,7 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, X, Search, TrendingUp, Users, DollarSign } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  CartesianGrid,
-} from 'recharts';
+import { Plus, X, Search, Users, DollarSign } from 'lucide-react';
 
 import { getEmployers } from '@/lib/db';
 import { PageHeader } from '@/components/layout/page-header';
@@ -34,16 +23,6 @@ interface EmployerIndex {
   medianSalary: number;
 }
 
-interface SalaryBand {
-  band: string;
-  [key: string]: string | number;
-}
-
-interface HeadcountTrend {
-  year: number;
-  [key: string]: number;
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const SLOT_COLORS = ['#d97706', '#059669', '#7c3aed'] as const;
@@ -58,47 +37,6 @@ function regionName(regionId: string): string {
   return region?.name ?? 'Unknown';
 }
 
-/**
- * Deterministic pseudo-random from a seed string.
- * Used to generate repeatable sample data per employer.
- */
-function seededRandom(seed: string): () => number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
-  }
-  return () => {
-    h = (h ^ (h >>> 16)) * 0x45d9f3b;
-    h = (h ^ (h >>> 16)) * 0x45d9f3b;
-    h = h ^ (h >>> 16);
-    return (h >>> 0) / 0xffffffff;
-  };
-}
-
-function generateSalaryBands(employers: EmployerIndex[]): SalaryBand[] {
-  const bands = ['$100-110K', '$110-120K', '$120-150K', '$150-200K', '$200K+'];
-  return bands.map((band) => {
-    const row: SalaryBand = { band };
-    employers.forEach((emp) => {
-      const rng = seededRandom(emp.id + band);
-      row[emp.id] = Math.round(rng() * 30 + 5);
-    });
-    return row;
-  });
-}
-
-function generateHeadcountTrend(employers: EmployerIndex[]): HeadcountTrend[] {
-  const years = [2023, 2024, 2025];
-  return years.map((year) => {
-    const row: HeadcountTrend = { year };
-    employers.forEach((emp) => {
-      const rng = seededRandom(emp.id + String(year));
-      const factor = 0.7 + (year - 2019) * 0.06 + rng() * 0.1;
-      row[emp.id] = Math.round(emp.headcount * factor);
-    });
-    return row;
-  });
-}
 
 // ── Employer Selector ──────────────────────────────────────────────────────────
 
@@ -329,15 +267,6 @@ function CompareContent() {
   const selectedEmployers = slots.filter(Boolean) as EmployerIndex[];
   const canCompare = selectedEmployers.length >= 2;
 
-  // Derived data for charts
-  const salaryBands = React.useMemo(
-    () => (canCompare ? generateSalaryBands(selectedEmployers) : []),
-    [canCompare, selectedEmployers]
-  );
-  const headcountTrend = React.useMemo(
-    () => (canCompare ? generateHeadcountTrend(selectedEmployers) : []),
-    [canCompare, selectedEmployers]
-  );
   const maxHeadcount = canCompare
     ? Math.max(...selectedEmployers.map((e) => e.headcount))
     : 1;
@@ -356,8 +285,8 @@ function CompareContent() {
         <p className="font-semibold text-sunshine-900 mb-1">How it works</p>
         <p>
           Search and select 2–3 employers to compare their headcount, median
-          salary, salary distribution, and year-over-year trends. You can share
-          the comparison by copying the URL.
+          salary, sector, and region. You can share the comparison by copying
+          the URL.
         </p>
       </div>
 
@@ -530,100 +459,6 @@ function CompareContent() {
             </div>
           </ComparisonRow>
 
-          {/* Salary Band Distribution */}
-          <ComparisonRow
-            label="Salary Band Distribution"
-            icon={<DollarSign className="h-4 w-4 text-sunshine-600" />}
-          >
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salaryBands} layout="vertical">
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#fde68a"
-                    horizontal={false}
-                  />
-                  <XAxis
-                    type="number"
-                    tick={{ fill: '#78350f', fontSize: 12 }}
-                    tickFormatter={(v) => `${v}%`}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="band"
-                    width={90}
-                    tick={{ fill: '#78350f', fontSize: 12 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#fffbeb',
-                      border: '1px solid #fde68a',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                    }}
-                    formatter={(value) => `${value}%`}
-                  />
-                  {selectedEmployers.map((emp, i) => (
-                    <Bar
-                      key={emp.id}
-                      dataKey={emp.id}
-                      name={emp.name}
-                      fill={SLOT_COLORS[i]}
-                      radius={[0, 4, 4, 0]}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ComparisonRow>
-
-          {/* Year-over-Year Growth */}
-          <ComparisonRow
-            label="Year-over-Year Headcount Growth"
-            icon={<TrendingUp className="h-4 w-4 text-sunshine-600" />}
-          >
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={headcountTrend}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#fde68a"
-                  />
-                  <XAxis
-                    dataKey="year"
-                    tick={{ fill: '#78350f', fontSize: 12 }}
-                  />
-                  <YAxis
-                    tick={{ fill: '#78350f', fontSize: 12 }}
-                    tickFormatter={(v) => formatNumber(v)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#fffbeb',
-                      border: '1px solid #fde68a',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                    }}
-                    formatter={(value) =>
-                      Number(value).toLocaleString('en-CA')
-                    }
-                  />
-                  {selectedEmployers.map((emp, i) => (
-                    <Line
-                      key={emp.id}
-                      type="monotone"
-                      dataKey={emp.id}
-                      name={emp.name}
-                      stroke={SLOT_COLORS[i]}
-                      strokeWidth={2.5}
-                      dot={{ fill: SLOT_COLORS[i], r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </ComparisonRow>
         </div>
       )}
 

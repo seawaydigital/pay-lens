@@ -32,13 +32,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run test --filter=web
 
-  test-etl:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: cd packages/etl && uv sync && uv run pytest
-
   build:
     runs-on: ubuntu-latest
     needs: [lint-typecheck]
@@ -52,6 +45,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_TURSO_DATABASE_URL: ${{ secrets.NEXT_PUBLIC_TURSO_DATABASE_URL }}
+          NEXT_PUBLIC_TURSO_AUTH_TOKEN: ${{ secrets.NEXT_PUBLIC_TURSO_AUTH_TOKEN }}
         run: pnpm run build --filter=web
