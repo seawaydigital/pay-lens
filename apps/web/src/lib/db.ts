@@ -136,11 +136,20 @@ export async function getDisclosureById(id: string): Promise<Disclosure | null> 
   return rowToObject<Disclosure>(result.rows[0] as unknown as Record<string, unknown>);
 }
 
-export async function getPersonDisclosures(firstName: string, lastName: string): Promise<Disclosure[]> {
-  const result = await turso.execute({
-    sql: 'SELECT * FROM disclosures WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?) ORDER BY year DESC',
-    args: [firstName, lastName],
-  });
+export async function getPersonDisclosures(
+  firstName: string,
+  lastName: string,
+  employerId?: string
+): Promise<Disclosure[]> {
+  // When employer_id is known, scope to that employer to avoid merging two
+  // people who happen to share the same name at different organisations.
+  const sql = employerId
+    ? 'SELECT * FROM disclosures WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?) AND employer_id = ? ORDER BY year DESC'
+    : 'SELECT * FROM disclosures WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?) ORDER BY year DESC';
+  const args: (string | number)[] = employerId
+    ? [firstName, lastName, employerId]
+    : [firstName, lastName];
+  const result = await turso.execute({ sql, args });
   return rowsToArray<Disclosure>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
@@ -200,6 +209,12 @@ export async function getSectorById(id: string): Promise<Sector | null> {
 export async function getRegions(): Promise<Region[]> {
   const result = await turso.execute('SELECT * FROM regions ORDER BY employee_count DESC');
   return rowsToArray<Region>(result.rows as unknown as Array<Record<string, unknown>>);
+}
+
+export async function getRegionById(regionId: string): Promise<Region | null> {
+  const result = await turso.execute({ sql: 'SELECT * FROM regions WHERE region_id = ?', args: [regionId] });
+  if (result.rows.length === 0) return null;
+  return rowToObject<Region>(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 /**

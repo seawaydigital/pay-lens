@@ -117,7 +117,12 @@ function PersonSelector({
     setOpen(false);
     setQuery('');
     try {
-      const allYears = await getPersonDisclosures(d.first_name, d.last_name);
+      // Pass employer_id so same-name people at different orgs aren't merged
+      const allYears = await getPersonDisclosures(
+        d.first_name,
+        d.last_name,
+        d.employer_id ?? undefined
+      );
       onSelect({ selected: d, allYears });
     } catch {
       onSelect({ selected: d, allYears: [d] });

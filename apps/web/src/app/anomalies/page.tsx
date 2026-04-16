@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import {
   AlertTriangle,
   ArrowRight,
@@ -316,9 +317,12 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-sunshine-900">
+            <Link
+              href={`/search?q=${encodeURIComponent(anomaly.name)}`}
+              className="text-base font-semibold text-sunshine-900 hover:text-sunshine-600 hover:underline"
+            >
               {anomaly.name}
-            </h3>
+            </Link>
             <span
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
@@ -336,7 +340,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
 
         <div className="text-right">
           <span className="text-xs text-sunshine-600">
-            {anomaly.yearPrev}&ndash;{anomaly.yearCurr}
+            {isNewEntry ? anomaly.yearCurr : `${anomaly.yearPrev}\u2013${anomaly.yearCurr}`}
           </span>
         </div>
       </div>

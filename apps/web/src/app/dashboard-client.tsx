@@ -89,8 +89,14 @@ export function DashboardClient() {
         ]);
 
         if (summary) {
+          // Use the historical record for the latest year so "Total Employees"
+          // reflects that year only (not the 1.6M all-years total).
+          const latestYearRecord = historicalData.find(
+            (h) => h.year === summary.latest_year
+          );
           setStats({
-            totalEmployees: summary.total_records,
+            totalEmployees:
+              latestYearRecord?.total_employees ?? summary.total_records,
             totalCompensation: summary.total_compensation,
             medianSalary: summary.median_salary,
             yoyGrowth: summary.yoy_growth,

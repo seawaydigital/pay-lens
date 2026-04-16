@@ -17,7 +17,7 @@ import {
   Line,
 } from 'recharts';
 
-import { getEmployerById, getEmployerDisclosures } from '@/lib/db';
+import { getEmployerById, getEmployerDisclosures, getRegionById } from '@/lib/db';
 import type { Disclosure } from '@/lib/turso';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataCaveatBanner } from '@/components/shared/data-caveat-banner';
@@ -28,6 +28,7 @@ interface EmployerView {
   name: string;
   sector: string;
   regionId: string;
+  regionName: string;
   headcount: number;
   medianSalary: number;
 }
@@ -123,13 +124,25 @@ function EmployerProfileContent() {
     }
 
     Promise.all([getEmployerById(id), getEmployerDisclosures(id)])
-      .then(([emp, discs]) => {
+      .then(async ([emp, discs]) => {
         if (emp) {
+          // Look up region name (non-blocking; falls back to raw ID)
+          let regionName = emp.region_id;
+          if (emp.region_id) {
+            try {
+              const region = await getRegionById(emp.region_id);
+              if (region) regionName = region.name;
+            } catch {
+              // keep raw ID as fallback
+            }
+          }
+
           setEmployer({
             id: emp.id,
             name: emp.name,
             sector: emp.sector,
             regionId: emp.region_id,
+            regionName,
             headcount: emp.headcount,
             medianSalary: emp.median_salary,
           });
@@ -207,7 +220,7 @@ function EmployerProfileContent() {
           </span>
           <span className="inline-flex items-center gap-1 text-sm text-sunshine-600">
             <MapPin className="h-3.5 w-3.5" />
-            Region {employer.regionId}
+            {employer.regionName}
           </span>
         </div>
       </div>

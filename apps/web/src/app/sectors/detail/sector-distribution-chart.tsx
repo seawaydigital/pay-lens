@@ -22,18 +22,6 @@ interface SectorDistributionChartProps {
   data?: DistributionBucket[];
 }
 
-const fallbackData: DistributionBucket[] = [
-  { bucket: '$100K-$110K', count: 4200 },
-  { bucket: '$110K-$120K', count: 6800 },
-  { bucket: '$120K-$130K', count: 5400 },
-  { bucket: '$130K-$140K', count: 3600 },
-  { bucket: '$140K-$150K', count: 2800 },
-  { bucket: '$150K-$175K', count: 1900 },
-  { bucket: '$175K-$200K', count: 980 },
-  { bucket: '$200K-$250K', count: 520 },
-  { bucket: '$250K+', count: 180 },
-];
-
 interface DistTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -55,12 +43,21 @@ function DistTooltip({ active, payload }: DistTooltipProps) {
 }
 
 export function SectorDistributionChart({ sectorName, data }: SectorDistributionChartProps) {
-  const chartData = data && data.length > 0 ? data : fallbackData;
+  if (!data || data.length === 0) {
+    return (
+      <ChartContainer title={`Salary Distribution \u2014 ${sectorName}`} height={300}>
+        <div className="flex items-center justify-center h-full text-sm text-sunshine-400">
+          No distribution data available
+        </div>
+      </ChartContainer>
+    );
+  }
+
   return (
     <ChartContainer title={`Salary Distribution \u2014 ${sectorName}`} height={300}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={chartData}
+          data={data}
           margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />

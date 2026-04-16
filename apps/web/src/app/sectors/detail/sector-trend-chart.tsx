@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -11,16 +12,16 @@ import {
 } from 'recharts';
 import { ChartContainer } from '@/components/charts/chart-container';
 import { formatNumber } from '@/lib/utils';
+import { getHistoricalSeries } from '@/lib/db';
+
+interface TrendPoint {
+  year: number;
+  headcount: number;
+}
 
 interface SectorTrendChartProps {
   sectorName: string;
 }
-
-const trendData = [
-  { year: 2023, headcount: 44800 },
-  { year: 2024, headcount: 48200 },
-  { year: 2025, headcount: 51600 },
-];
 
 interface TrendTooltipProps {
   active?: boolean;
@@ -44,6 +45,45 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
 }
 
 export function SectorTrendChart({ sectorName }: SectorTrendChartProps) {
+  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getHistoricalSeries()
+      .then((series) => {
+        const points: TrendPoint[] = series
+          .map((h) => {
+            const sectorEntry = h.sectors[sectorName];
+            return sectorEntry ? { year: h.year, headcount: sectorEntry.count } : null;
+          })
+          .filter((p): p is TrendPoint => p !== null)
+          .sort((a, b) => a.year - b.year);
+        setTrendData(points);
+      })
+      .catch(() => setTrendData([]))
+      .finally(() => setLoading(false));
+  }, [sectorName]);
+
+  if (loading) {
+    return (
+      <ChartContainer title={`Headcount Over Time \u2014 ${sectorName}`} height={300}>
+        <div className="flex items-center justify-center h-full">
+          <div className="h-6 w-6 animate-spin rounded-full border-4 border-sunshine-300 border-t-sunshine-600" />
+        </div>
+      </ChartContainer>
+    );
+  }
+
+  if (trendData.length === 0) {
+    return (
+      <ChartContainer title={`Headcount Over Time \u2014 ${sectorName}`} height={300}>
+        <div className="flex items-center justify-center h-full text-sm text-sunshine-400">
+          No trend data available for this sector
+        </div>
+      </ChartContainer>
+    );
+  }
+
   return (
     <ChartContainer title={`Headcount Over Time \u2014 ${sectorName}`} height={300}>
       <ResponsiveContainer width="100%" height="100%">
