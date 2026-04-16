@@ -33,8 +33,20 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<number | 'all'>(2025);
 
+  // Cache loaded year data so switching back to a visited year is instant
+  const cache = useState<Map<number | 'all', RegionDetail[]>>(() => new Map())[0];
+
   useEffect(() => {
     let cancelled = false;
+
+    // Serve from cache if available — no loading state, no network call
+    const cached = cache.get(selectedYear);
+    if (cached) {
+      setRegions(cached);
+      setSelectedRegion(null);
+      return;
+    }
+
     setLoading(true);
     setSelectedRegion(null);
 
@@ -44,16 +56,16 @@ export default function MapPage() {
           selectedYear === 'all' ? undefined : selectedYear
         );
         if (cancelled) return;
-        setRegions(
-          regionsData.map((r) => ({
-            regionId: r.region_id,
-            name: r.name,
-            medianSalary: r.median_salary,
-            count: r.employee_count,
-            lat: r.lat,
-            lng: r.lng,
-          }))
-        );
+        const mapped = regionsData.map((r) => ({
+          regionId: r.region_id,
+          name: r.name,
+          medianSalary: r.median_salary,
+          count: r.employee_count,
+          lat: r.lat,
+          lng: r.lng,
+        }));
+        cache.set(selectedYear, mapped);
+        setRegions(mapped);
       } catch (err) {
         console.error('Failed to load map data:', err);
       } finally {
@@ -63,7 +75,7 @@ export default function MapPage() {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [selectedYear]);
+  }, [selectedYear, cache]);
 
   const handleRegionSelect = useCallback((region: RegionDetail) => {
     setSelectedRegion(region);
