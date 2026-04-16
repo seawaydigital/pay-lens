@@ -128,7 +128,7 @@ function PersonDetailContent() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Single effect: fetch primary record, render immediately, then fire secondary batch
+  // Single HTTP round trip: primary record + all secondary queries in one batch via subqueries
   useEffect(() => {
     if (!id) { setLoading(false); setNotFound(true); return; }
 
@@ -143,55 +143,80 @@ function PersonDetailContent() {
       return rows.map((r) => toRow<T>(r));
     }
 
-    async function loadStats(disc: Disclosure) {
-      const histSql = disc.employer_id
-        ? 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? AND employer_id = ? ORDER BY year ASC'
-        : 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC';
-      const histArgs: (string | number)[] = disc.employer_id
-        ? [disc.first_name, disc.last_name, disc.employer_id]
-        : [disc.first_name, disc.last_name];
-
+    async function load() {
       try {
-        const batchResults = await turso.batch([
-          // 0. Salary history
-          { sql: histSql, args: histArgs },
+        const [r0, r1, r2, r3, r4, r5, r6] = await turso.batch([
+          // 0. Primary record
+          { sql: 'SELECT * FROM disclosures WHERE id = ?', args: [id!] },
 
-          // 1. Top peers with same job title
+          // 1. Salary history — scoped to same employer if employer_id is set
           {
-            sql: 'SELECT * FROM disclosures WHERE year = ? AND job_title = ? ORDER BY salary_paid DESC LIMIT 10',
-            args: [disc.year, disc.job_title],
+            sql: `SELECT * FROM disclosures
+                  WHERE first_name = (SELECT first_name FROM disclosures WHERE id = ?)
+                    AND last_name  = (SELECT last_name  FROM disclosures WHERE id = ?)
+                    AND ((SELECT employer_id FROM disclosures WHERE id = ?) IS NULL
+                         OR employer_id = (SELECT employer_id FROM disclosures WHERE id = ?))
+                  ORDER BY year ASC`,
+            args: [id!, id!, id!, id!],
           },
 
-          // 2. Peer percentile — total + below in one query
+          // 2. Top peers with same job title in same year
+          {
+            sql: `SELECT * FROM disclosures
+                  WHERE year      = (SELECT year      FROM disclosures WHERE id = ?)
+                    AND job_title = (SELECT job_title FROM disclosures WHERE id = ?)
+                  ORDER BY salary_paid DESC LIMIT 10`,
+            args: [id!, id!],
+          },
+
+          // 3. Peer percentile
           {
             sql: `SELECT COUNT(*) as total,
-                    SUM(CASE WHEN salary_paid <= ? THEN 1 ELSE 0 END) as below
-                  FROM disclosures WHERE year = ? AND job_title = ?`,
-            args: [disc.salary_paid, disc.year, disc.job_title],
+                    SUM(CASE WHEN salary_paid <= (SELECT salary_paid FROM disclosures WHERE id = ?) THEN 1 ELSE 0 END) as below
+                  FROM disclosures
+                  WHERE year      = (SELECT year      FROM disclosures WHERE id = ?)
+                    AND job_title = (SELECT job_title FROM disclosures WHERE id = ?)`,
+            args: [id!, id!, id!],
           },
 
-          // 3. Employer rank — total + above in one query
+          // 4. Employer rank
           {
             sql: `SELECT COUNT(*) as total,
-                    SUM(CASE WHEN salary_paid > ? THEN 1 ELSE 0 END) as above
-                  FROM disclosures WHERE year = ? AND employer_id = ?`,
-            args: [disc.salary_paid, disc.year, disc.employer_id ?? ''],
+                    SUM(CASE WHEN salary_paid > (SELECT salary_paid FROM disclosures WHERE id = ?) THEN 1 ELSE 0 END) as above
+                  FROM disclosures
+                  WHERE year        = (SELECT year        FROM disclosures WHERE id = ?)
+                    AND employer_id = (SELECT employer_id FROM disclosures WHERE id = ?)`,
+            args: [id!, id!, id!],
           },
 
-          // 4. Sector median
-          { sql: 'SELECT median_salary FROM sectors WHERE name = ? LIMIT 1', args: [disc.sector] },
-
-          // 5. Top colleagues at same employer (excluding self)
+          // 5. Sector median
           {
-            sql: 'SELECT * FROM disclosures WHERE year = ? AND employer_id = ? AND id != ? ORDER BY salary_paid DESC LIMIT 5',
-            args: [disc.year, disc.employer_id ?? '', disc.id],
+            sql: `SELECT median_salary FROM sectors
+                  WHERE name = (SELECT sector FROM disclosures WHERE id = ?) LIMIT 1`,
+            args: [id!],
+          },
+
+          // 6. Top colleagues at same employer (excluding self)
+          {
+            sql: `SELECT * FROM disclosures
+                  WHERE year        = (SELECT year        FROM disclosures WHERE id = ?)
+                    AND employer_id = (SELECT employer_id FROM disclosures WHERE id = ?)
+                    AND id != ?
+                  ORDER BY salary_paid DESC LIMIT 5`,
+            args: [id!, id!, id!],
           },
         ], 'read');
 
-        setHistory(toRows<Disclosure>(batchResults[0].rows as unknown as Array<Record<string, unknown>>));
-        setPeers(toRows<Disclosure>(batchResults[1].rows as unknown as Array<Record<string, unknown>>));
+        if (r0.rows.length === 0) { setNotFound(true); setLoading(false); setLoadingStats(false); return; }
 
-        const peerRow = batchResults[2].rows[0] as unknown as Record<string, unknown>;
+        const disc = toRow<Disclosure>(r0.rows[0] as unknown as Record<string, unknown>);
+        setPerson(disc);
+        setLoading(false);
+
+        setHistory(toRows<Disclosure>(r1.rows as unknown as Array<Record<string, unknown>>));
+        setPeers(toRows<Disclosure>(r2.rows as unknown as Array<Record<string, unknown>>));
+
+        const peerRow = r3.rows[0] as unknown as Record<string, unknown>;
         const totalPeers = Number(peerRow?.total ?? 0);
         const peersBelow = Number(peerRow?.below ?? 0);
         if (totalPeers > 1) {
@@ -202,40 +227,23 @@ function PersonDetailContent() {
           });
         }
 
-        const rankRow = batchResults[3].rows[0] as unknown as Record<string, unknown>;
+        const rankRow = r4.rows[0] as unknown as Record<string, unknown>;
         const empTotal = Number(rankRow?.total ?? 0);
         const empAbove = Number(rankRow?.above ?? 0);
         if (empTotal > 0) {
           setEmployerRank({ rank: empAbove + 1, total: empTotal });
         }
 
-        if (batchResults[4].rows.length > 0) {
-          const medianVal = (batchResults[4].rows[0] as unknown as Record<string, unknown>)?.median_salary;
+        if (r5.rows.length > 0) {
+          const medianVal = (r5.rows[0] as unknown as Record<string, unknown>)?.median_salary;
           if (medianVal != null) setSectorMedian(Number(medianVal));
         }
 
-        setColleagues(toRows<Disclosure>(batchResults[5].rows as unknown as Array<Record<string, unknown>>));
-      } catch {
-        // Stats are non-critical — basic profile is already visible
-      } finally {
-        setLoadingStats(false);
-      }
-    }
-
-    async function load() {
-      try {
-        const discResult = await turso.execute({
-          sql: 'SELECT * FROM disclosures WHERE id = ?',
-          args: [id!],
-        });
-        if (discResult.rows.length === 0) { setNotFound(true); setLoading(false); setLoadingStats(false); return; }
-        const disc = toRow<Disclosure>(discResult.rows[0] as unknown as Record<string, unknown>);
-        setPerson(disc);
-        setLoading(false); // show basic profile immediately; stats load next
-        await loadStats(disc); // fire immediately — no React re-render cycle in between
+        setColleagues(toRows<Disclosure>(r6.rows as unknown as Array<Record<string, unknown>>));
       } catch {
         setNotFound(true);
         setLoading(false);
+      } finally {
         setLoadingStats(false);
       }
     }
