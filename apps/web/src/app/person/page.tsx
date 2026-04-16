@@ -155,6 +155,15 @@ function PersonDetailContent() {
         setPerson(disc);
 
         // Run all secondary queries in parallel
+        // Build history query: match by name + employer to avoid merging
+        // different people who share the same name at different organizations.
+        const histSql = disc.employer_id
+          ? 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? AND employer_id = ? ORDER BY year ASC'
+          : 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC';
+        const histArgs: (string | number)[] = disc.employer_id
+          ? [disc.first_name, disc.last_name, disc.employer_id]
+          : [disc.first_name, disc.last_name];
+
         const [
           histResult,
           peerTopResult,
@@ -165,11 +174,9 @@ function PersonDetailContent() {
           sectorResult,
           colleagueResult,
         ] = await Promise.all([
-          // 2. Salary history — all records with same name
-          turso.execute({
-            sql: 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC',
-            args: [disc.first_name, disc.last_name],
-          }),
+          // 2. Salary history — scoped to same name + employer to prevent
+          //    merging distinct people who share a name across organizations.
+          turso.execute({ sql: histSql, args: histArgs }),
 
           // 3. Top peers with same job title (for display table)
           turso.execute({

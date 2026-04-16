@@ -26,7 +26,7 @@ import { ExportButton } from '@/components/shared/export-button';
 import { searchDisclosures, getSectors } from '@/lib/db';
 import type { Disclosure as DbDisclosure, Sector } from '@/lib/turso';
 
-const YEARS = [2025, 2024, 2023];
+const YEARS = [2025, 2024, 2023, 2022, 2021];
 const PAGE_SIZE = 25;
 
 const SALARY_RANGES = [
@@ -48,9 +48,10 @@ function mapDisclosure(d: DbDisclosure): Disclosure {
     employer: d.employer,
     employerId: d.employer_id ?? '',
     sector: d.sector,
-    salaryPaid: d.salary_paid,
-    taxableBenefits: d.taxable_benefits,
-    totalCompensation: d.total_compensation,
+    salaryPaid: d.salary_paid ?? 0,
+    taxableBenefits: d.taxable_benefits ?? 0,
+    // total_compensation is not stored as a column — compute it from parts
+    totalCompensation: (d.salary_paid ?? 0) + (d.taxable_benefits ?? 0),
     regionId: d.region_id ?? '',
     regionName: d.region_name ?? '',
   };
@@ -66,7 +67,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('2025');
+  const [selectedYear, setSelectedYear] = useState('all');
   const [selectedSalaryRange, setSelectedSalaryRange] = useState('all');
 
   // Sort state
@@ -207,7 +208,7 @@ export default function SearchPage() {
 
   const hasActiveFilters =
     selectedSector !== 'all' ||
-    selectedYear !== '2025' ||
+    selectedYear !== 'all' ||
     selectedSalaryRange !== 'all' ||
     query.trim().length > 0;
 
@@ -215,7 +216,7 @@ export default function SearchPage() {
     setQuery('');
     setDebouncedQuery('');
     setSelectedSector('all');
-    setSelectedYear('2025');
+    setSelectedYear('all');
     setSelectedSalaryRange('all');
   };
 

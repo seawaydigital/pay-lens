@@ -139,12 +139,16 @@ Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'
 
 - **No fabricated data** — all data must come from real Turso queries or actual CSV imports. No mock/sample JSON files.
 - **Loader scripts are gitignored** — `apps/web/scripts/` contains auth tokens and is in `.gitignore`. Never commit scripts from that directory.
-- **Supabase is fully deprecated** — `supabase.ts` and `supabase/` directory are dead code and can be deleted.
+- **No Supabase** — fully removed April 2026. No `supabase.ts`, no `supabase/` dir, no `packages/etl/`. All data flows through Turso only.
 - **react-leaflet v4** (not v5) — v5 requires React 19, this project uses React 18.
 - **Dashboard uses dynamic import** — `page.tsx` dynamically imports `dashboard-client.tsx` with `ssr: false` to avoid SSR issues.
 - **Employer deduplication** — bilingual names (English / French) normalized to English-only by `normalizeEmployer()` in build script.
 - **Sector normalization** — en-dash (U+2013) vs ASCII hyphen collisions handled by `normalizeSector()` in build script.
 - **Region mapping** — 49 Ontario Census Divisions, matched via keyword rules in build script. ~60% coverage, provincial orgs default to Toronto.
 - **Turso import** — requires Turso CLI in WSL Ubuntu (`~/.local/bin/turso`) and `sqlite3` package. Token expires ~7 days, renew with `turso config set token <JWT>`.
-- **CI workflow** — pre-existing failure in `packages/etl` hatchling build; doesn't block the Deploy workflow, ignore it.
 - **After DB import** — always run `node scripts/add-fts.mjs` to rebuild the FTS5 index on the new database.
+- **CI** — `ci.yml` runs lint/typecheck/test/build (Turso secrets); `deploy.yml` deploys to GitHub Pages. No Python/ETL jobs remain.
+- **`/person` page** — uses direct `turso.execute()` calls instead of db.ts for its multi-query load. Known architecture deviation; works correctly but bypasses the standard data access layer.
+- **`/person` history scoped to employer** — history query matches `first_name + last_name + employer_id` (not name-only) so two people with the same name at different organizations are never merged into a single profile.
+- **`total_compensation` is not a DB column** — the `disclosures` table has only `salary_paid` and `taxable_benefits`. Any code that needs total must compute `salary_paid + taxable_benefits` — never read `d.total_compensation` from a raw DB row (it will be `undefined`).
+- **Search defaults to "All years"** — year filter in `/search` defaults to `'all'`; the year dropdown covers 2021–2025. `hasActiveFilters` and `clearFilters` both treat `'all'` as the baseline, not `'2025'`.
