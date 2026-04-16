@@ -202,6 +202,48 @@ export async function getRegions(): Promise<Region[]> {
   return rowsToArray<Region>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
+/**
+ * Returns region-level stats for a specific year (or all years if year is
+ * undefined). For a specific year the median salary and headcount are computed
+ * live from the disclosures table using a window-function CTE so that the map
+ * reflects exactly that year's data. For the all-years case we fall back to the
+ * pre-aggregated regions table.
+ */
+export async function getRegionsByYear(year?: number): Promise<Region[]> {
+  if (!year) return getRegions();
+
+  // Window-function CTE: computes median salary per region for the given year.
+  // ROW_NUMBER partitioned by region_id lets us select the middle row(s).
+  // For odd n:   (n+1)/2 == (n+2)/2 → single middle row.
+  // For even n:  the two middle rows are averaged by AVG().
+  const sql = `
+    WITH stats AS (
+      SELECT
+        region_id,
+        salary_paid,
+        ROW_NUMBER() OVER (PARTITION BY region_id ORDER BY salary_paid) AS rn,
+        COUNT(*)     OVER (PARTITION BY region_id)                      AS cnt
+      FROM disclosures
+      WHERE year = ? AND region_id IS NOT NULL
+    )
+    SELECT
+      s.region_id,
+      r.name,
+      r.lat,
+      r.lng,
+      AVG(s.salary_paid)  AS median_salary,
+      MAX(s.cnt)          AS employee_count
+    FROM stats s
+    JOIN regions r ON s.region_id = r.region_id
+    WHERE s.rn IN ((s.cnt + 1) / 2, (s.cnt + 2) / 2)
+    GROUP BY s.region_id, r.name, r.lat, r.lng
+    ORDER BY employee_count DESC
+  `;
+
+  const result = await turso.execute({ sql, args: [year] });
+  return rowsToArray<Region>(result.rows as unknown as Array<Record<string, unknown>>);
+}
+
 // ── Anomalies ─────────────────────────────────────────────────────────────────
 
 export async function getAnomalies(flag?: Anomaly['flag']): Promise<Anomaly[]> {
