@@ -34,7 +34,7 @@ Pay Lens is a pay transparency platform for Ontario's Sunshine List. It turns th
 ## Database Schema
 
 ### Tables
-- `disclosures` — Main table: **1,594,844 rows** (all 5 years: 2021–2025)
+- `disclosures` — Main table: **1,800,696 rows** (all 6 years: 2020–2025)
   - Columns: id, year, first_name, last_name, job_title, employer, employer_id, sector, salary_paid, taxable_benefits, region_id, region_name
   - Uses deterministic IDs (SHA-256 hash of year+name+employer+salary) for resumable loads
   - Indexed on: year, employer_id, sector, (last_name, first_name), job_title, salary_paid, region_id
@@ -48,12 +48,13 @@ Pay Lens is a pay transparency platform for Ontario's Sunshine List. It turns th
 - `benchmarks` — Role-based salary benchmarks with percentiles (1,759 rows)
 
 ### Data State (complete as of April 2026)
+- 2020: 205,852 rows ✅ (file: `2020-salaries.csv`, has leading `_id` column — handled via `colOffset: 1` in build script)
 - 2021: 244,441 rows ✅
 - 2022: 266,937 rows ✅
 - 2023: 300,671 rows ✅
 - 2024: 377,881 rows ✅
 - 2025: 404,914 rows ✅
-- **Total: 1,594,844 disclosures**
+- **Total: 1,800,696 disclosures**
 
 ## Data Pipeline
 
@@ -151,8 +152,8 @@ Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'
 - **`/person` page** — uses direct `turso.execute()` calls instead of db.ts for its multi-query load. Known architecture deviation; works correctly but bypasses the standard data access layer.
 - **`/person` and `/compare/people` history scoped to employer** — both pages scope salary history by `first_name + last_name + employer_id` so two people with the same name at different organizations are never merged. `getPersonDisclosures(firstName, lastName, employerId?)` accepts an optional third arg; when omitted it falls back to name-only (URL-hydration path in compare/people).
 - **`total_compensation` is not a DB column** — the `disclosures` table has only `salary_paid` and `taxable_benefits`. Any code that needs total must compute `salary_paid + taxable_benefits` — never read `d.total_compensation` from a raw DB row (it will be `undefined`).
-- **Search defaults to "All years"** — year filter in `/search` defaults to `'all'`; the year dropdown covers 2021–2025. `hasActiveFilters` and `clearFilters` both treat `'all'` as the baseline, not `'2025'`.
-- **Dashboard "Total Employees"** stat uses `historical_series` for the latest year (404,914 for 2025), not `stats_summary.total_records` (1,594,844 all-years). Always use the historical record to display a per-year headcount.
+- **Search defaults to "All years"** — year filter in `/search` defaults to `'all'`; the year dropdown covers 2020–2025. `hasActiveFilters` and `clearFilters` both treat `'all'` as the baseline, not `'2025'`.
+- **Dashboard "Total Employees"** stat uses `historical_series` for the latest year (404,914 for 2025), not `stats_summary.total_records` (1,800,696 all-years). Always use the historical record to display a per-year headcount.
 - **`historical_series.sectors`** is a JSON column: `Record<string, { count: number; median: number }>` keyed by normalized sector name. The Sector Trend Chart reads this to get real per-year headcounts — no fabricated data.
 - **`getRegionById(regionId)`** is available in `db.ts` for looking up a region by its `region_id` primary key (e.g. to turn a raw ID into a display name on the Employer Profile page).
 - **Anomaly `year_prev` can be null** for `new_high_entry` flag — treat null as "no prior year" and display only `year_curr`. Never coerce null to `0` with `?? 0` in display code.
