@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import type { RegionDetail } from '@/components/map/region-detail-panel';
@@ -16,16 +16,71 @@ const PayMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-sunshine-300 bg-sunshine-50">
-        <div className="text-center">
-          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-sunshine-300 border-t-sunshine-600" />
-          <p className="text-sm text-sunshine-600">Loading map...</p>
-        </div>
+        <p className="text-sm text-sunshine-600">Initialising map…</p>
       </div>
     ),
   }
 );
 
 const YEARS = [2025, 2024, 2023, 2022, 2021] as const;
+
+// ── Animated progress bar ──────────────────────────────────────────────────────
+// Fills to ~80 % while the DB query is in-flight, then snaps to 100 % and fades.
+
+function MapProgressBar({ loading, year }: { loading: boolean; year: number | 'all' }) {
+  const [width, setWidth] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+
+    if (loading) {
+      setVisible(true);
+      setWidth(0);
+      timers.current.push(setTimeout(() => setWidth(55), 40));
+      timers.current.push(setTimeout(() => setWidth(80), 220));
+    } else {
+      setWidth(100);
+      timers.current.push(setTimeout(() => setVisible(false), 600));
+      timers.current.push(setTimeout(() => setWidth(0), 700));
+    }
+    return () => timers.current.forEach(clearTimeout);
+  }, [loading]);
+
+  if (!visible) return null;
+
+  const label = year === 'all' ? 'all years' : `${year}`;
+
+  return (
+    <div className="absolute inset-0 z-[1500] flex flex-col items-center justify-center bg-white/50 backdrop-blur-[2px]">
+      <div className="w-72 space-y-3 rounded-xl border border-sunshine-200 bg-white/95 p-5 shadow-lg">
+        <p className="text-sm font-semibold text-sunshine-900">
+          Loading {label} regional data…
+        </p>
+        {/* Track */}
+        <div className="h-2.5 w-full overflow-hidden rounded-full bg-sunshine-100">
+          {/* Fill */}
+          <div
+            className="h-full rounded-full bg-sunshine-500"
+            style={{
+              width: `${width}%`,
+              transition: width === 0 ? 'none' : 'width 0.22s ease-out',
+              opacity: width === 100 ? 0 : 1,
+              transitionProperty: 'width, opacity',
+            }}
+          />
+        </div>
+        <p className="text-xs text-sunshine-500">
+          Typically completes in under a second
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function MapPage() {
   const [regions, setRegions] = useState<RegionDetail[]>([]);
@@ -39,7 +94,6 @@ export default function MapPage() {
   useEffect(() => {
     let cancelled = false;
 
-    // Serve from cache if available — no loading state, no network call
     const cached = cache.get(selectedYear);
     if (cached) {
       setRegions(cached);
@@ -93,17 +147,17 @@ export default function MapPage() {
           description="Explore median salaries by region across Ontario."
         />
 
-        {/* Year selector */}
+        {/* ── Year selector ── */}
         <div className="flex items-center gap-1.5 pb-1">
           {YEARS.map((y) => (
             <button
               key={y}
               onClick={() => setSelectedYear(y)}
               className={cn(
-                'rounded-full px-3 py-1 text-sm font-medium transition-colors',
+                'rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
                 selectedYear === y
-                  ? 'bg-sunshine-500 text-white'
-                  : 'bg-sunshine-100 text-sunshine-700 hover:bg-sunshine-200'
+                  ? 'border-sunshine-800 bg-sunshine-800 text-white shadow-sm'
+                  : 'border-sunshine-300 bg-white text-sunshine-700 hover:border-sunshine-500 hover:bg-sunshine-50'
               )}
             >
               {y}
@@ -112,10 +166,10 @@ export default function MapPage() {
           <button
             onClick={() => setSelectedYear('all')}
             className={cn(
-              'rounded-full px-3 py-1 text-sm font-medium transition-colors',
+              'rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
               selectedYear === 'all'
-                ? 'bg-sunshine-500 text-white'
-                : 'bg-sunshine-100 text-sunshine-700 hover:bg-sunshine-200'
+                ? 'border-sunshine-800 bg-sunshine-800 text-white shadow-sm'
+                : 'border-sunshine-300 bg-white text-sunshine-700 hover:border-sunshine-500 hover:bg-sunshine-50'
             )}
           >
             All years
@@ -123,32 +177,24 @@ export default function MapPage() {
         </div>
       </div>
 
+      {/* ── Map container ── */}
       <div
         className="relative mt-4 overflow-hidden rounded-lg border border-sunshine-200 shadow-sm"
         style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
       >
-        {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-sunshine-300 border-t-sunshine-600" />
-              <p className="text-sm text-sunshine-600">Loading data...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <PayMap regions={regions} onRegionSelect={handleRegionSelect} />
+        <MapProgressBar loading={loading} year={selectedYear} />
 
-            {/* Year badge — always visible on the map */}
-            <div className="absolute bottom-4 left-4 z-[1000] rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-sunshine-800 shadow ring-1 ring-sunshine-200 backdrop-blur-sm">
-              {selectedYear === 'all' ? 'All years (2021–2025)' : `${selectedYear} data`}
-            </div>
+        <PayMap regions={regions} onRegionSelect={handleRegionSelect} />
 
-            <RegionDetailPanel
-              region={selectedRegion}
-              onClose={handleClosePanel}
-            />
-          </>
-        )}
+        {/* Year badge — bottom-right, above the Leaflet attribution strip */}
+        <div className="absolute bottom-8 right-4 z-[1000] rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-sunshine-800 shadow ring-1 ring-sunshine-200 backdrop-blur-sm">
+          {selectedYear === 'all' ? 'All years (2021–2025)' : `${selectedYear} data`}
+        </div>
+
+        <RegionDetailPanel
+          region={selectedRegion}
+          onClose={handleClosePanel}
+        />
       </div>
 
       <DataCaveatBanner className="mt-4" />
