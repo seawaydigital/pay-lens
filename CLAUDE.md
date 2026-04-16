@@ -28,7 +28,7 @@ Pay Lens is a pay transparency platform for Ontario's Sunshine List. It turns th
 
 ### Environment Variables
 - `NEXT_PUBLIC_TURSO_DATABASE_URL` — Turso database URL
-- `NEXT_PUBLIC_TURSO_AUTH_TOKEN` — Turso auth token
+- `NEXT_PUBLIC_TURSO_AUTH_TOKEN` — Turso auth token (expires ~7 days after DB destroy/recreate — renew with `turso db tokens create paylens-v2` in WSL)
 - Both set as GitHub secrets for CI/CD deployment and in `apps/web/.env.local` for local dev
 
 ## Database Schema
@@ -37,18 +37,20 @@ Pay Lens is a pay transparency platform for Ontario's Sunshine List. It turns th
 - `disclosures` — Main table: **3,270,174 rows** (all 30 years: 1996–2025)
   - Columns: id, year, first_name, last_name, job_title, employer, employer_id, sector, salary_paid, taxable_benefits, region_id, region_name
   - Uses deterministic IDs (SHA-256 hash of year+name+employer+salary) for resumable loads
-  - Indexed on: year, employer_id, sector, (last_name, first_name), job_title, salary_paid, region_id
+  - Indexed on: year, employer_id, sector, (last_name, first_name), job_title, salary_paid, region_id, (job_title, year, salary_paid)
 - `disclosures_fts` — FTS5 virtual table (content=disclosures) for fast full-text search
-- `employers` — Aggregated employer stats (3,096 employers)
-- `sectors` — Sector-level aggregates (22 sectors)
-- `regions` — Census Division regions with lat/lng for the map (49 regions)
+- `employers` — Aggregated employer stats (all-years rollup — not year-specific)
+- `sectors` — Sector-level aggregates (all-years rollup — not year-specific)
+- `regions` — Census Division regions with lat/lng for the map (49 regions, all-years)
+- `regions_by_year` — Pre-computed median + headcount per (year, region_id) — 1,470 rows (49 × 30 years)
+- `dashboard_by_year` — Pre-computed per-year dashboard data: employee_count, total_comp, median_salary, sectors_json, employers_json — 30 rows (1996–2025). Used by dashboard year selector for instant switching.
 - `anomalies` — Flagged unusual salary changes (500 rows: 300 large_increase, 50 large_decrease, 75 new_high_entry, 75 multi_employer)
-- `historical_series` — Per-year aggregate stats (5 rows, 2021–2025)
-- `stats_summary` — Dashboard summary stats (single row)
-- `benchmarks` — Role-based salary benchmarks with percentiles (1,759 rows)
+- `historical_series` — Per-year aggregate stats (30 rows, 1996–2025)
+- `stats_summary` — Dashboard summary stats (single row, all-years totals)
+- `benchmarks` — Role-based salary benchmarks with percentiles (1,824 rows, based on 2025 data)
 
 ### Data State (complete as of April 2026)
-All 30 years loaded from `~/Documents/Cowork/{year}-salaries.csv` (uniform naming, no colOffset needed)
+All 30 years loaded from `~/Documents/Cowork/{year}-salaries.csv` (uniform naming)
 - 1996: 4,498 | 1997: 5,377 | 1998: 6,291 | 1999: 8,125 | 2000: 10,352
 - 2001: 13,034 | 2002: 16,691 | 2003: 20,367 | 2004: 23,249 | 2005: 27,459
 - 2006: 34,199 | 2007: 42,761 | 2008: 53,813 | 2009: 64,144 | 2010: 71,581
@@ -62,65 +64,62 @@ All 30 years loaded from `~/Documents/Cowork/{year}-salaries.csv` (uniform namin
 ### Full rebuild (when adding new year's data)
 ```bash
 cd apps/web
-# Builds complete local paylens.db from all CSVs in ~/Downloads/
+# Reads all CSVs from ~/Documents/Cowork/{year}-salaries.csv (1996-2025)
 node scripts/build-local-db.mjs
 
-# Skip CSV loading if only derived tables need rebuilding (~12 min saved):
+# Skip CSV loading if only derived tables need rebuilding:
 SKIP_LOAD=1 node scripts/build-local-db.mjs
 
 # Upload to Turso (requires Turso CLI in WSL Ubuntu):
-wsl -d Ubuntu -- bash -c "cp /mnt/c/Users/ajaustin/Documents/Claude\ Code/Sunshine\ List\ Site/apps/web/paylens.db /tmp/paylens.db && ~/.local/bin/turso db import paylens.db --overwrite"
+wsl -d Ubuntu -- bash -c "~/.local/bin/turso db destroy paylens-v2 --yes && ~/.local/bin/turso db create paylens-v2 --from-file /tmp/paylens.db --wait"
+
+# After import — issue new token and update .env.local + GitHub secret:
+wsl -d Ubuntu -- bash -c "~/.local/bin/turso db tokens create paylens-v2"
+# Then: gh secret set NEXT_PUBLIC_TURSO_AUTH_TOKEN --body "<token>"
+
+# Re-add covering index (not preserved by import):
+node scripts/add-person-index.mjs
 ```
 
-### Quick anomaly sync (without full rebuild)
+### Post-import checklist (run after every turso db import)
 ```bash
-cd apps/web
-node scripts/sync-anomalies.mjs
-```
-
-### Adding FTS5 index to live DB (one-time, or after a new DB import)
-```bash
-cd apps/web
-node scripts/add-fts.mjs
+node scripts/add-fts.mjs           # Rebuild FTS5 index
+node scripts/add-person-index.mjs  # Re-add covering index (job_title, year, salary_paid)
+# dashboard_by_year and regions_by_year ARE built by build-local-db.mjs and carried in the file
 ```
 
 ### CSV file locations
-All 5 CSVs are in `~/Downloads/` (Windows). Build script reads from there automatically.
-| Year | File |
-|---|---|
-| 2021 | `tbs-pssd-compendium-salary-disclosed-2021-en-utf-8-2023-01-05.csv` |
-| 2022 | `tbs-pssd-compendium-salary-disclosed-2022-en-utf-8-2024-01-19.csv` |
-| 2023 | `tbs-pssd-compendium-salary-disclosed-2023-en-utf-8-2025-03-26.csv` |
-| 2024 | `tbs-pssd-compendium-salary-disclosed-2024-en-utf-8-2026-01-29.csv` |
-| 2025 | `tbs-pssd-compendium-salary-disclosed-2025-en-utf-8-2026-03-23.csv` |
+All 30 CSVs in `~/Documents/Cowork/` with uniform `{year}-salaries.csv` naming.
+Build script reads them automatically — no manual file list needed.
 
 ## Search Architecture
 
-Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'` wildcards (full scan on 1.6M rows):
+Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'` wildcards:
 - Single term → `last_name LIKE 'term%' OR first_name LIKE 'term%' OR employer LIKE '%term%'`
 - Two terms → `(first_name LIKE 'A%' AND last_name LIKE 'B%') OR (first_name LIKE 'B%' AND last_name LIKE 'A%')`
 - FTS5 virtual table (`disclosures_fts`) exists in the DB for potential future MATCH queries
+- Year filter defaults to `'all'`; dropdown covers 1996–2025
 
 ## Pages (20 total)
 
 | Route | Description |
 |---|---|
-| `/` | Dashboard with stats, sector chart, top employers, YoY trend |
-| `/search` | Full-text search with filters (sector, year, salary range) |
+| `/` | Dashboard with year selector (1996–2025), stat cards, sector chart, top employers, YoY trend |
+| `/search` | Full-text search with filters (sector, year 1996–2025, salary range) |
 | `/person?id=` | Individual disclosure detail with salary history, peer percentile |
 | `/employers` | Employer directory with search |
 | `/employers/profile?id=` | Employer detail with charts |
 | `/sectors` | Sector overview with velocity stream chart |
 | `/sectors/detail?id=` | Individual sector detail |
 | `/benchmark` | Role benchmarking tool (enter title + region) |
-| `/map` | Interactive Leaflet choropleth map of Ontario regions |
+| `/map` | Interactive Leaflet choropleth map of Ontario regions (year selector 1996–2025) |
 | `/compare` | Side-by-side employer comparison |
 | `/compare/people` | Side-by-side person comparison |
 | `/history` | Historical explorer with inflation toggle |
 | `/anomalies` | Flagged unusual salary changes |
 | `/methodology` | Data methodology explanation |
-| `/opt-out` | Name removal request form |
-| `/report-error` | Data error reporting form |
+| `/opt-out` | Name removal request form (year dropdown 1996–2025) |
+| `/report-error` | Data error reporting form (year dropdown 1996–2025) |
 
 ## Key Files
 
@@ -132,10 +131,24 @@ Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'
 | `apps/web/src/lib/constants.ts` | NAV_ITEMS for site header navigation |
 | `apps/web/src/lib/geo/regions.ts` | Ontario Census Division definitions |
 | `apps/web/src/lib/seo.ts` | createMetadata helper |
-| `apps/web/scripts/build-local-db.mjs` | **Unified build pipeline** — loads CSVs, builds all derived tables, creates FTS index (gitignored) |
-| `apps/web/scripts/sync-anomalies.mjs` | Rebuild + sync just the anomalies table to live DB (gitignored) |
-| `apps/web/scripts/add-fts.mjs` | One-time migration: add FTS5 virtual table to live DB (gitignored) |
+| `apps/web/src/app/dashboard-client.tsx` | Dashboard with year selector, uses `getDashboardByYear()` + in-memory cache |
+| `apps/web/scripts/build-local-db.mjs` | **Unified build pipeline** — loads all 30 CSVs from Cowork/, builds all derived tables including `dashboard_by_year` and `regions_by_year`, creates FTS index (gitignored) |
+| `apps/web/scripts/add-fts.mjs` | One-time: rebuild FTS5 index on live DB after import (gitignored) |
+| `apps/web/scripts/add-person-index.mjs` | One-time: add covering index `(job_title, year, salary_paid)` on live DB (gitignored) |
+| `apps/web/scripts/add-dashboard-by-year.mjs` | One-time: populate `dashboard_by_year` table on live DB (gitignored) |
 | `apps/web/next.config.mjs` | basePath for GitHub Pages in production |
+
+## db.ts Key Functions
+
+| Function | Description |
+|---|---|
+| `getDashboardByYear(year)` | PK lookup from `dashboard_by_year` — returns sectors_json + employers_json pre-parsed. Used by dashboard year selector. |
+| `getRegionsByYear(year?)` | Year-specific map data from `regions_by_year` (<200ms); no-arg falls back to all-years `regions` table |
+| `getHistoricalSeries()` | Returns 30 rows with `sectors` JSON: `Record<string, { count: number; median: number }>` |
+| `getPersonDisclosures(firstName, lastName, employerId?)` | Optional third arg scopes to one employer; omit for name-only fallback |
+| `getRegionById(regionId)` | Lookup a single region by PK — used on Employer Profile page |
+| `getSectorsByYear(year)` | Live GROUP BY query — deprecated for dashboard, kept for other pages |
+| `getTopEmployersByYear(year, limit?)` | Live GROUP BY query — deprecated for dashboard, kept for other pages |
 
 ## Important Notes
 
@@ -144,17 +157,19 @@ Search uses prefix matching on indexed columns (fast) rather than `LIKE '%term%'
 - **No Supabase** — fully removed April 2026. No `supabase.ts`, no `supabase/` dir, no `packages/etl/`. All data flows through Turso only.
 - **react-leaflet v4** (not v5) — v5 requires React 19, this project uses React 18.
 - **Dashboard uses dynamic import** — `page.tsx` dynamically imports `dashboard-client.tsx` with `ssr: false` to avoid SSR issues.
+- **Dashboard year selector** — `getDashboardByYear(year)` does a single PK lookup on `dashboard_by_year`. Client caches results in `useRef<Map>` so revisiting a year is instant. Adjacent years prefetched in background after initial load.
 - **Employer deduplication** — bilingual names (English / French) normalized to English-only by `normalizeEmployer()` in build script.
 - **Sector normalization** — en-dash (U+2013) vs ASCII hyphen collisions handled by `normalizeSector()` in build script.
 - **Region mapping** — 49 Ontario Census Divisions, matched via keyword rules in build script. ~60% coverage, provincial orgs default to Toronto.
-- **Turso import** — requires Turso CLI in WSL Ubuntu (`~/.local/bin/turso`) and `sqlite3` package. Token expires ~7 days, renew with `turso config set token <JWT>`.
-- **After DB import** — always run `node scripts/add-fts.mjs` to rebuild the FTS5 index on the new database.
+- **Turso import** — CLI changed: use `turso db destroy paylens-v2 --yes` then `turso db create paylens-v2 --from-file /tmp/paylens.db --wait`. The old `--overwrite` flag no longer exists.
+- **After DB import** — always run `node scripts/add-fts.mjs` AND `node scripts/add-person-index.mjs`. The `dashboard_by_year` and `regions_by_year` tables ARE carried in the DB file — no extra script needed.
 - **CI** — `ci.yml` runs lint/typecheck/test/build (Turso secrets); `deploy.yml` deploys to GitHub Pages. No Python/ETL jobs remain.
-- **`/person` page** — uses direct `turso.execute()` calls instead of db.ts for its multi-query load. Known architecture deviation; works correctly but bypasses the standard data access layer.
-- **`/person` and `/compare/people` history scoped to employer** — both pages scope salary history by `first_name + last_name + employer_id` so two people with the same name at different organizations are never merged. `getPersonDisclosures(firstName, lastName, employerId?)` accepts an optional third arg; when omitted it falls back to name-only (URL-hydration path in compare/people).
-- **`total_compensation` is not a DB column** — the `disclosures` table has only `salary_paid` and `taxable_benefits`. Any code that needs total must compute `salary_paid + taxable_benefits` — never read `d.total_compensation` from a raw DB row (it will be `undefined`).
-- **Search defaults to "All years"** — year filter in `/search` defaults to `'all'`; the year dropdown covers 1996–2025. `hasActiveFilters` and `clearFilters` both treat `'all'` as the baseline, not `'2025'`.
-- **Dashboard "Total Employees"** stat uses `historical_series` for the latest year (404,914 for 2025), not `stats_summary.total_records` (3,270,174 all-years). Always use the historical record to display a per-year headcount.
-- **`historical_series.sectors`** is a JSON column: `Record<string, { count: number; median: number }>` keyed by normalized sector name. The Sector Trend Chart reads this to get real per-year headcounts — no fabricated data.
-- **`getRegionById(regionId)`** is available in `db.ts` for looking up a region by its `region_id` primary key (e.g. to turn a raw ID into a display name on the Employer Profile page).
-- **Anomaly `year_prev` can be null** for `new_high_entry` flag — treat null as "no prior year" and display only `year_curr`. Never coerce null to `0` with `?? 0` in display code.
+- **`/person` page** — uses `turso.batch()` in two-phase loading: effect 1 fetches the primary record and renders immediately; effect 2 batches all 6 secondary queries in one HTTP request. Known architecture deviation from db.ts pattern; works correctly.
+- **`/person` and `/compare/people` history scoped to employer** — both scope salary history by `first_name + last_name + employer_id` so two people with the same name at different orgs are never merged.
+- **`total_compensation` is not a DB column** — always compute as `salary_paid + taxable_benefits`. Never read `d.total_compensation` from a raw DB row (will be `undefined`).
+- **Search defaults to "All years"** — year filter defaults to `'all'`; dropdown covers 1996–2025. `hasActiveFilters` and `clearFilters` treat `'all'` as baseline.
+- **Dashboard "Total Employees"** stat uses `dashboard_by_year.employee_count` for the selected year (e.g. 404,914 for 2025), not `stats_summary.total_records` (3,270,174 all-years).
+- **`historical_series.sectors`** is a JSON column: `Record<string, { count: number; median: number }>` keyed by normalized sector name. The Sector Trend Chart reads this.
+- **`getRegionById(regionId)`** is available in `db.ts` for looking up a region by its `region_id` primary key.
+- **Anomaly `year_prev` can be null** for `new_high_entry` flag — treat null as "no prior year". Never coerce null to `0` with `?? 0` in display code.
+- **Stop hook** — `.claude/settings.local.json` has a Stop hook with `bypassPermissions: true` that runs a memory-sync agent. It reads recent git commits and updates CLAUDE.md + the memory file. Only runs when commits exist in the last 4 hours.
