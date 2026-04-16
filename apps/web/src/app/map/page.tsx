@@ -22,7 +22,7 @@ const PayMap = dynamic(
   }
 );
 
-const YEARS = [2025, 2024, 2023, 2022, 2021] as const;
+const YEARS = Array.from({ length: 30 }, (_, i) => 2025 - i) as unknown as readonly number[];
 
 // ── Animated progress bar ──────────────────────────────────────────────────────
 // Fills to ~80 % while the DB query is in-flight, then snaps to 100 % and fades.
@@ -188,7 +188,7 @@ export default function MapPage() {
 
         {/* Year badge — bottom-right, above the Leaflet attribution strip */}
         <div className="absolute bottom-8 right-4 z-[1000] rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-sunshine-800 shadow ring-1 ring-sunshine-200 backdrop-blur-sm">
-          {selectedYear === 'all' ? 'All years (2021–2025)' : `${selectedYear} data`}
+          {selectedYear === 'all' ? 'All years (1996–2025)' : `${selectedYear} data`}
         </div>
 
         <RegionDetailPanel

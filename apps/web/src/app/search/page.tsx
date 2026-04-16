@@ -26,7 +26,7 @@ import { ExportButton } from '@/components/shared/export-button';
 import { searchDisclosures, getSectors } from '@/lib/db';
 import type { Disclosure as DbDisclosure, Sector } from '@/lib/turso';
 
-const YEARS = [2025, 2024, 2023, 2022, 2021];
+const YEARS = Array.from({ length: 30 }, (_, i) => 2025 - i); // 2025 down to 1996
 const PAGE_SIZE = 25;
 
 const SALARY_RANGES = [
