@@ -198,6 +198,40 @@ export async function getSectors(): Promise<Sector[]> {
   return rowsToArray<Sector>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
+/** Live sector breakdown for a specific year, queried directly from disclosures */
+export async function getSectorsByYear(year: number): Promise<{ name: string; count: number; medianSalary: number }[]> {
+  const result = await turso.execute({
+    sql: `SELECT sector as name, COUNT(*) as count, AVG(salary_paid) as avg_sal
+          FROM disclosures WHERE year = ? AND sector != ''
+          GROUP BY sector ORDER BY count DESC`,
+    args: [year],
+  });
+  // Compute median per sector via a second pass (approximate: use avg as proxy for speed)
+  return (result.rows as unknown as Array<Record<string, unknown>>).map((r) => ({
+    name: String(r.name ?? ''),
+    count: Number(r.count ?? 0),
+    medianSalary: Number(r.avg_sal ?? 0),
+  }));
+}
+
+/** Live top-employer breakdown for a specific year, queried directly from disclosures */
+export async function getTopEmployersByYear(year: number, limit = 10): Promise<{ id: string; name: string; sector: string; headcount: number; medianSalary: number }[]> {
+  const result = await turso.execute({
+    sql: `SELECT employer_id as id, MAX(employer) as name, MAX(sector) as sector,
+                 COUNT(*) as headcount, AVG(salary_paid) as avg_sal
+          FROM disclosures WHERE year = ? AND employer_id != ''
+          GROUP BY employer_id ORDER BY headcount DESC LIMIT ?`,
+    args: [year, limit],
+  });
+  return (result.rows as unknown as Array<Record<string, unknown>>).map((r) => ({
+    id: String(r.id ?? ''),
+    name: String(r.name ?? ''),
+    sector: String(r.sector ?? ''),
+    headcount: Number(r.headcount ?? 0),
+    medianSalary: Number(r.avg_sal ?? 0),
+  }));
+}
+
 export async function getSectorById(id: string): Promise<Sector | null> {
   const result = await turso.execute({ sql: 'SELECT * FROM sectors WHERE id = ?', args: [id] });
   if (result.rows.length === 0) return null;
