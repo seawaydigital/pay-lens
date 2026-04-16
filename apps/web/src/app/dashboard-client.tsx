@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { ChevronDown } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -8,12 +8,8 @@ import { StatCard } from '@/components/layout/stat-card';
 import { DataCaveatBanner } from '@/components/layout/data-caveat-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber, formatCurrency, formatPercent } from '@/lib/utils';
-import {
-  getStatsSummary,
-  getHistoricalSeries,
-  getSectorsByYear,
-  getTopEmployersByYear,
-} from '@/lib/db';
+import { getHistoricalSeries, getDashboardByYear } from '@/lib/db';
+import type { DashboardYearData } from '@/lib/db';
 
 // Dynamic imports for Recharts-based components (no SSR)
 const SectorDonut = dynamic(
@@ -35,27 +31,6 @@ const AmIOnTheList = dynamic(
   () => import('@/components/benchmark/am-i-on-the-list').then((m) => m.AmIOnTheList),
   { ssr: false, loading: () => <Skeleton className="h-[200px] w-full rounded-lg" /> }
 );
-
-interface YearStats {
-  totalEmployees: number;
-  totalCompensation: number;
-  medianSalary: number;
-  yoyGrowth: number;
-}
-
-interface SectorData {
-  name: string;
-  count: number;
-  medianSalary: number;
-}
-
-interface EmployerData {
-  id: string;
-  name: string;
-  sector: string;
-  headcount: number;
-  medianSalary: number;
-}
 
 interface YearData {
   year: number;
@@ -79,26 +54,22 @@ function StatCardSkeleton() {
 export function DashboardClient() {
   const [selectedYear, setSelectedYear] = useState(2025);
   const [latestYear, setLatestYear] = useState(2025);
-  const [yearStats, setYearStats] = useState<YearStats | null>(null);
-  const [sectors, setSectors] = useState<SectorData[] | null>(null);
-  const [employers, setEmployers] = useState<EmployerData[] | null>(null);
+  const [yearData, setYearData] = useState<DashboardYearData | null>(null);
   const [byYear, setByYear] = useState<YearData[]>([]);
   const [isLoadingBase, setIsLoadingBase] = useState(true);
   const [isLoadingYear, setIsLoadingYear] = useState(true);
 
-  // Load base data (historical series, stats summary) once
+  // In-memory cache: year → DashboardYearData so switching back is instant
+  const cache = useRef<Map<number, DashboardYearData>>(new Map());
+
+  // Load historical series once at startup
   useEffect(() => {
     async function loadBase() {
       try {
-        const [summary, historicalData] = await Promise.all([
-          getStatsSummary(),
-          getHistoricalSeries(),
-        ]);
-
-        const latest = summary?.latest_year ?? 2025;
+        const historicalData = await getHistoricalSeries();
+        const latest = historicalData.at(-1)?.year ?? 2025;
         setLatestYear(latest);
         setSelectedYear(latest);
-
         setByYear(
           historicalData.map((h) => ({
             year: h.year,
@@ -108,7 +79,7 @@ export function DashboardClient() {
           }))
         );
       } catch (error) {
-        console.error('Failed to load base dashboard data:', error);
+        console.error('Failed to load historical data:', error);
       } finally {
         setIsLoadingBase(false);
       }
@@ -116,31 +87,21 @@ export function DashboardClient() {
     loadBase();
   }, []);
 
-  // Load year-specific data whenever selectedYear changes
-  const loadYearData = useCallback(async (year: number, allYears: YearData[]) => {
+  // Load year-specific data — single PK lookup from dashboard_by_year
+  const loadYearData = useCallback(async (year: number) => {
+    // Serve from cache if already fetched
+    if (cache.current.has(year)) {
+      setYearData(cache.current.get(year)!);
+      setIsLoadingYear(false);
+      return;
+    }
     setIsLoadingYear(true);
     try {
-      const [sectorsData, employersData] = await Promise.all([
-        getSectorsByYear(year),
-        getTopEmployersByYear(year, 10),
-      ]);
-
-      // Pull stats from historical_series for this year
-      const yrRecord = allYears.find((y) => y.year === year);
-      const prevRecord = allYears.find((y) => y.year === year - 1);
-      const yoyGrowth = yrRecord && prevRecord
-        ? ((yrRecord.count - prevRecord.count) / prevRecord.count) * 100
-        : 0;
-
-      setYearStats(yrRecord ? {
-        totalEmployees: yrRecord.count,
-        totalCompensation: yrRecord.totalComp,
-        medianSalary: yrRecord.median,
-        yoyGrowth,
-      } : null);
-
-      setSectors(sectorsData);
-      setEmployers(employersData);
+      const data = await getDashboardByYear(year);
+      if (data) {
+        cache.current.set(year, data);
+        setYearData(data);
+      }
     } catch (error) {
       console.error('Failed to load year data:', error);
     } finally {
@@ -148,14 +109,31 @@ export function DashboardClient() {
     }
   }, []);
 
-  // Trigger year load once byYear is populated
   useEffect(() => {
-    if (byYear.length > 0) {
-      loadYearData(selectedYear, byYear);
+    loadYearData(selectedYear);
+  }, [selectedYear, loadYearData]);
+
+  // Prefetch adjacent years in the background after initial load
+  useEffect(() => {
+    if (isLoadingYear || !yearData) return;
+    const adjacent = [selectedYear - 1, selectedYear + 1].filter(
+      (y) => y >= 1996 && y <= 2025 && !cache.current.has(y)
+    );
+    for (const y of adjacent) {
+      getDashboardByYear(y).then((data) => {
+        if (data) cache.current.set(y, data);
+      }).catch(() => {});
     }
-  }, [selectedYear, byYear, loadYearData]);
+  }, [selectedYear, isLoadingYear, yearData]);
 
   const isLoading = isLoadingBase || isLoadingYear;
+
+  // YoY growth from historical series
+  const prevYearRecord = byYear.find((y) => y.year === selectedYear - 1);
+  const currYearRecord = byYear.find((y) => y.year === selectedYear);
+  const yoyGrowth = currYearRecord && prevYearRecord
+    ? ((currYearRecord.count - prevYearRecord.count) / prevYearRecord.count) * 100
+    : null;
 
   return (
     <div className="space-y-8">
@@ -189,7 +167,7 @@ export function DashboardClient() {
 
       {/* Row 1: Stat Cards — all scoped to selectedYear */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {isLoading || !yearStats ? (
+        {isLoading || !yearData ? (
           <>
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -200,23 +178,27 @@ export function DashboardClient() {
           <>
             <StatCard
               title="Employees on List"
-              value={formatNumber(yearStats.totalEmployees)}
+              value={formatNumber(yearData.employeeCount)}
               description={`Unique disclosures in ${selectedYear}`}
             />
             <StatCard
               title="Total Disclosed Pay"
-              value={`$${(yearStats.totalCompensation / 1e9).toFixed(1)}B`}
+              value={`$${(yearData.totalComp / 1e9).toFixed(1)}B`}
               description={`Total compensation in ${selectedYear}`}
             />
             <StatCard
               title="Median Salary"
-              value={formatCurrency(yearStats.medianSalary)}
+              value={formatCurrency(yearData.medianSalary)}
               description={`Median across all ${selectedYear} disclosures`}
             />
             <StatCard
-              title={selectedYear === latestYear ? 'YoY Growth' : `vs ${selectedYear - 1}`}
-              value={`${yearStats.yoyGrowth >= 0 ? '+' : ''}${formatPercent(yearStats.yoyGrowth)}`}
-              description={`Change in headcount from ${selectedYear - 1}`}
+              title={yoyGrowth !== null ? `vs ${selectedYear - 1}` : 'Year on List'}
+              value={yoyGrowth !== null
+                ? `${yoyGrowth >= 0 ? '+' : ''}${formatPercent(yoyGrowth)}`
+                : selectedYear.toString()}
+              description={yoyGrowth !== null
+                ? `Change in headcount from ${selectedYear - 1}`
+                : 'First year in dataset'}
             />
           </>
         )}
@@ -229,8 +211,8 @@ export function DashboardClient() {
             {selectedYear} — Employees by Sector
           </p>
           <SectorDonut
-            data={sectors ?? []}
-            isLoading={isLoading || !sectors}
+            data={yearData?.sectors ?? []}
+            isLoading={isLoading}
           />
         </div>
         <div>
@@ -238,13 +220,13 @@ export function DashboardClient() {
             {selectedYear} — Top Employers by Headcount
           </p>
           <TopEmployersBar
-            data={employers ?? []}
-            isLoading={isLoading || !employers}
+            data={yearData?.employers ?? []}
+            isLoading={isLoading}
           />
         </div>
       </div>
 
-      {/* Row 3: Historical trend (always all years) */}
+      {/* Row 3: Historical trend (all years) */}
       <div>
         <p className="mb-2 text-xs font-medium text-sunshine-500 uppercase tracking-wide">
           1996–2025 — Year-over-Year Growth
@@ -257,8 +239,8 @@ export function DashboardClient() {
 
       {/* Row 4: Am I on the List? */}
       <AmIOnTheList
-        medianSalary={yearStats?.medianSalary ?? 122262}
-        totalEmployees={yearStats?.totalEmployees ?? 404914}
+        medianSalary={yearData?.medianSalary ?? 122262}
+        totalEmployees={yearData?.employeeCount ?? 404914}
       />
 
       {/* Row 5: Data Caveat */}

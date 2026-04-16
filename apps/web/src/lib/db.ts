@@ -198,7 +198,37 @@ export async function getSectors(): Promise<Sector[]> {
   return rowsToArray<Sector>(result.rows as unknown as Array<Record<string, unknown>>);
 }
 
-/** Live sector breakdown for a specific year, queried directly from disclosures */
+export interface DashboardYearData {
+  year: number;
+  employeeCount: number;
+  totalComp: number;
+  medianSalary: number;
+  sectors: { name: string; count: number; medianSalary: number }[];
+  employers: { id: string; name: string; sector: string; headcount: number; medianSalary: number }[];
+}
+
+/**
+ * Fetch pre-aggregated dashboard data for a specific year from the
+ * dashboard_by_year table — a single PK lookup, no GROUP BY needed.
+ */
+export async function getDashboardByYear(year: number): Promise<DashboardYearData | null> {
+  const result = await turso.execute({
+    sql: 'SELECT * FROM dashboard_by_year WHERE year = ?',
+    args: [year],
+  });
+  if (result.rows.length === 0) return null;
+  const r = result.rows[0] as unknown as Record<string, unknown>;
+  return {
+    year: Number(r.year),
+    employeeCount: Number(r.employee_count ?? 0),
+    totalComp: Number(r.total_comp ?? 0),
+    medianSalary: Number(r.median_salary ?? 0),
+    sectors: JSON.parse(String(r.sectors_json ?? '[]')),
+    employers: JSON.parse(String(r.employers_json ?? '[]')),
+  };
+}
+
+/** @deprecated Use getDashboardByYear() for the dashboard. Kept for other pages. */
 export async function getSectorsByYear(year: number): Promise<{ name: string; count: number; medianSalary: number }[]> {
   const result = await turso.execute({
     sql: `SELECT sector as name, COUNT(*) as count, AVG(salary_paid) as avg_sal
@@ -206,7 +236,6 @@ export async function getSectorsByYear(year: number): Promise<{ name: string; co
           GROUP BY sector ORDER BY count DESC`,
     args: [year],
   });
-  // Compute median per sector via a second pass (approximate: use avg as proxy for speed)
   return (result.rows as unknown as Array<Record<string, unknown>>).map((r) => ({
     name: String(r.name ?? ''),
     count: Number(r.count ?? 0),
@@ -214,7 +243,7 @@ export async function getSectorsByYear(year: number): Promise<{ name: string; co
   }));
 }
 
-/** Live top-employer breakdown for a specific year, queried directly from disclosures */
+/** @deprecated Use getDashboardByYear() for the dashboard. Kept for other pages. */
 export async function getTopEmployersByYear(year: number, limit = 10): Promise<{ id: string; name: string; sector: string; headcount: number; medianSalary: number }[]> {
   const result = await turso.execute({
     sql: `SELECT employer_id as id, MAX(employer) as name, MAX(sector) as sector,
