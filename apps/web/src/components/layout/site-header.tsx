@@ -11,6 +11,12 @@ import { Input } from '@/components/ui/input';
 export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    import('@/lib/turso').then(({ turso }) => {
+      turso.execute('SELECT 1 FROM stats_summary LIMIT 1').catch(() => {});
+    }).catch(() => {});
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 w-full bg-sunshine-900 text-cream-50 shadow-md">
       <div className="container flex h-14 items-center justify-between">
