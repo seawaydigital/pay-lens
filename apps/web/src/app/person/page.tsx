@@ -128,62 +128,30 @@ function PersonDetailContent() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Effect 1: fetch the primary disclosure record, then show the page immediately
+  // Single effect: fetch primary record, render immediately, then fire secondary batch
   useEffect(() => {
     if (!id) { setLoading(false); setNotFound(true); return; }
 
-    async function load() {
-      function toRow<T>(row: Record<string, unknown>): T {
-        const obj: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(row)) {
-          obj[k] = typeof v === 'bigint' ? Number(v) : v;
-        }
-        return obj as T;
+    function toRow<T>(row: Record<string, unknown>): T {
+      const obj: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        obj[k] = typeof v === 'bigint' ? Number(v) : v;
       }
-      try {
-        const discResult = await turso.execute({
-          sql: 'SELECT * FROM disclosures WHERE id = ?',
-          args: [id!],
-        });
-        if (discResult.rows.length === 0) { setNotFound(true); setLoading(false); return; }
-        const disc = toRow<Disclosure>(discResult.rows[0] as unknown as Record<string, unknown>);
-        setPerson(disc);
-        setLoading(false); // show basic profile immediately; stats load in effect 2
-      } catch {
-        setNotFound(true);
-        setLoading(false);
-        setLoadingStats(false);
-      }
+      return obj as T;
+    }
+    function toRows<T>(rows: Array<Record<string, unknown>>): T[] {
+      return rows.map((r) => toRow<T>(r));
     }
 
-    load();
-  }, [id]);
-
-  // Effect 2: once person is set, batch all secondary stats in a single HTTP request
-  useEffect(() => {
-    if (!person) return;
-
     async function loadStats(disc: Disclosure) {
-      function toRow<T>(row: Record<string, unknown>): T {
-        const obj: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(row)) {
-          obj[k] = typeof v === 'bigint' ? Number(v) : v;
-        }
-        return obj as T;
-      }
-      function toRows<T>(rows: Array<Record<string, unknown>>): T[] {
-        return rows.map((r) => toRow<T>(r));
-      }
+      const histSql = disc.employer_id
+        ? 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? AND employer_id = ? ORDER BY year ASC'
+        : 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC';
+      const histArgs: (string | number)[] = disc.employer_id
+        ? [disc.first_name, disc.last_name, disc.employer_id]
+        : [disc.first_name, disc.last_name];
 
       try {
-        const histSql = disc.employer_id
-          ? 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? AND employer_id = ? ORDER BY year ASC'
-          : 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC';
-        const histArgs: (string | number)[] = disc.employer_id
-          ? [disc.first_name, disc.last_name, disc.employer_id]
-          : [disc.first_name, disc.last_name];
-
-        // All 6 secondary queries in one HTTP request to Turso
         const batchResults = await turso.batch([
           // 0. Salary history
           { sql: histSql, args: histArgs },
@@ -194,7 +162,7 @@ function PersonDetailContent() {
             args: [disc.year, disc.job_title],
           },
 
-          // 2. Peer percentile — total + below in one query (was 2 separate queries)
+          // 2. Peer percentile — total + below in one query
           {
             sql: `SELECT COUNT(*) as total,
                     SUM(CASE WHEN salary_paid <= ? THEN 1 ELSE 0 END) as below
@@ -202,7 +170,7 @@ function PersonDetailContent() {
             args: [disc.salary_paid, disc.year, disc.job_title],
           },
 
-          // 3. Employer rank — total + above in one query (was 2 separate queries)
+          // 3. Employer rank — total + above in one query
           {
             sql: `SELECT COUNT(*) as total,
                     SUM(CASE WHEN salary_paid > ? THEN 1 ELSE 0 END) as above
@@ -254,8 +222,26 @@ function PersonDetailContent() {
       }
     }
 
-    loadStats(person);
-  }, [person]);
+    async function load() {
+      try {
+        const discResult = await turso.execute({
+          sql: 'SELECT * FROM disclosures WHERE id = ?',
+          args: [id!],
+        });
+        if (discResult.rows.length === 0) { setNotFound(true); setLoading(false); setLoadingStats(false); return; }
+        const disc = toRow<Disclosure>(discResult.rows[0] as unknown as Record<string, unknown>);
+        setPerson(disc);
+        setLoading(false); // show basic profile immediately; stats load next
+        await loadStats(disc); // fire immediately — no React re-render cycle in between
+      } catch {
+        setNotFound(true);
+        setLoading(false);
+        setLoadingStats(false);
+      }
+    }
+
+    load();
+  }, [id]);
 
   if (loading) {
     return (
