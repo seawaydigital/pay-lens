@@ -125,13 +125,45 @@ function PersonDetailContent() {
   const [sectorMedian, setSectorMedian] = useState<number | null>(null);
   const [colleagues, setColleagues] = useState<Disclosure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // Effect 1: fetch the primary disclosure record, then show the page immediately
   useEffect(() => {
     if (!id) { setLoading(false); setNotFound(true); return; }
 
     async function load() {
-      // Helper to convert libSQL rows (which may have bigint values) to plain objects
+      function toRow<T>(row: Record<string, unknown>): T {
+        const obj: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(row)) {
+          obj[k] = typeof v === 'bigint' ? Number(v) : v;
+        }
+        return obj as T;
+      }
+      try {
+        const discResult = await turso.execute({
+          sql: 'SELECT * FROM disclosures WHERE id = ?',
+          args: [id!],
+        });
+        if (discResult.rows.length === 0) { setNotFound(true); setLoading(false); return; }
+        const disc = toRow<Disclosure>(discResult.rows[0] as unknown as Record<string, unknown>);
+        setPerson(disc);
+        setLoading(false); // show basic profile immediately; stats load in effect 2
+      } catch {
+        setNotFound(true);
+        setLoading(false);
+        setLoadingStats(false);
+      }
+    }
+
+    load();
+  }, [id]);
+
+  // Effect 2: once person is set, batch all secondary stats in a single HTTP request
+  useEffect(() => {
+    if (!person) return;
+
+    async function loadStats(disc: Disclosure) {
       function toRow<T>(row: Record<string, unknown>): T {
         const obj: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(row)) {
@@ -144,19 +176,6 @@ function PersonDetailContent() {
       }
 
       try {
-        // 1. Fetch the specific disclosure record
-        const discResult = await turso.execute({
-          sql: 'SELECT * FROM disclosures WHERE id = ?',
-          args: [id!],
-        });
-
-        if (discResult.rows.length === 0) { setNotFound(true); setLoading(false); return; }
-        const disc = toRow<Disclosure>(discResult.rows[0] as unknown as Record<string, unknown>);
-        setPerson(disc);
-
-        // Run all secondary queries in parallel
-        // Build history query: match by name + employer to avoid merging
-        // different people who share the same name at different organizations.
         const histSql = disc.employer_id
           ? 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? AND employer_id = ? ORDER BY year ASC'
           : 'SELECT * FROM disclosures WHERE first_name = ? AND last_name = ? ORDER BY year ASC';
@@ -164,73 +183,49 @@ function PersonDetailContent() {
           ? [disc.first_name, disc.last_name, disc.employer_id]
           : [disc.first_name, disc.last_name];
 
-        const [
-          histResult,
-          peerTopResult,
-          peerTotalResult,
-          peerBelowResult,
-          empRankAboveResult,
-          empTotalResult,
-          sectorResult,
-          colleagueResult,
-        ] = await Promise.all([
-          // 2. Salary history — scoped to same name + employer to prevent
-          //    merging distinct people who share a name across organizations.
-          turso.execute({ sql: histSql, args: histArgs }),
+        // All 6 secondary queries in one HTTP request to Turso
+        const batchResults = await turso.batch([
+          // 0. Salary history
+          { sql: histSql, args: histArgs },
 
-          // 3. Top peers with same job title (for display table)
-          turso.execute({
+          // 1. Top peers with same job title
+          {
             sql: 'SELECT * FROM disclosures WHERE year = ? AND job_title = ? ORDER BY salary_paid DESC LIMIT 10',
             args: [disc.year, disc.job_title],
-          }),
+          },
 
-          // 4a. Total peers with same title (for percentile)
-          turso.execute({
-            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND job_title = ?',
-            args: [disc.year, disc.job_title],
-          }),
+          // 2. Peer percentile — total + below in one query (was 2 separate queries)
+          {
+            sql: `SELECT COUNT(*) as total,
+                    SUM(CASE WHEN salary_paid <= ? THEN 1 ELSE 0 END) as below
+                  FROM disclosures WHERE year = ? AND job_title = ?`,
+            args: [disc.salary_paid, disc.year, disc.job_title],
+          },
 
-          // 4b. Peers earning less than or equal (for percentile)
-          turso.execute({
-            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND job_title = ? AND salary_paid <= ?',
-            args: [disc.year, disc.job_title, disc.salary_paid],
-          }),
+          // 3. Employer rank — total + above in one query (was 2 separate queries)
+          {
+            sql: `SELECT COUNT(*) as total,
+                    SUM(CASE WHEN salary_paid > ? THEN 1 ELSE 0 END) as above
+                  FROM disclosures WHERE year = ? AND employer_id = ?`,
+            args: [disc.salary_paid, disc.year, disc.employer_id ?? ''],
+          },
 
-          // 5a. Employees at same employer earning more (for rank)
-          turso.execute({
-            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND employer_id = ? AND salary_paid > ?',
-            args: [disc.year, disc.employer_id ?? '', disc.salary_paid],
-          }),
+          // 4. Sector median
+          { sql: 'SELECT median_salary FROM sectors WHERE name = ? LIMIT 1', args: [disc.sector] },
 
-          // 5b. Total employees at same employer
-          turso.execute({
-            sql: 'SELECT COUNT(*) as cnt FROM disclosures WHERE year = ? AND employer_id = ?',
-            args: [disc.year, disc.employer_id ?? ''],
-          }),
-
-          // 6. Sector median
-          turso.execute({
-            sql: 'SELECT median_salary FROM sectors WHERE name = ? LIMIT 1',
-            args: [disc.sector],
-          }),
-
-          // 7. Same-employer colleagues in related roles (top 5 by salary, excluding self)
-          turso.execute({
+          // 5. Top colleagues at same employer (excluding self)
+          {
             sql: 'SELECT * FROM disclosures WHERE year = ? AND employer_id = ? AND id != ? ORDER BY salary_paid DESC LIMIT 5',
             args: [disc.year, disc.employer_id ?? '', disc.id],
-          }),
-        ]);
+          },
+        ], 'read');
 
-        setHistory(toRows<Disclosure>(histResult.rows as unknown as Array<Record<string, unknown>>));
-        setPeers(toRows<Disclosure>(peerTopResult.rows as unknown as Array<Record<string, unknown>>));
+        setHistory(toRows<Disclosure>(batchResults[0].rows as unknown as Array<Record<string, unknown>>));
+        setPeers(toRows<Disclosure>(batchResults[1].rows as unknown as Array<Record<string, unknown>>));
 
-        // Percentile: (peers earning <= you) / total peers x 100
-        const totalPeers = Number(
-          (peerTotalResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
-        );
-        const peersBelow = Number(
-          (peerBelowResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
-        );
+        const peerRow = batchResults[2].rows[0] as unknown as Record<string, unknown>;
+        const totalPeers = Number(peerRow?.total ?? 0);
+        const peersBelow = Number(peerRow?.below ?? 0);
         if (totalPeers > 1) {
           setPeerStats({
             totalPeers,
@@ -239,35 +234,28 @@ function PersonDetailContent() {
           });
         }
 
-        // Employer rank
-        const empAbove = Number(
-          (empRankAboveResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
-        );
-        const empTotal = Number(
-          (empTotalResult.rows[0] as unknown as Record<string, unknown>)?.cnt ?? 0
-        );
+        const rankRow = batchResults[3].rows[0] as unknown as Record<string, unknown>;
+        const empTotal = Number(rankRow?.total ?? 0);
+        const empAbove = Number(rankRow?.above ?? 0);
         if (empTotal > 0) {
           setEmployerRank({ rank: empAbove + 1, total: empTotal });
         }
 
-        // Sector median
-        if (sectorResult.rows.length > 0) {
-          const medianVal = (sectorResult.rows[0] as unknown as Record<string, unknown>)?.median_salary;
-          if (medianVal != null) {
-            setSectorMedian(Number(medianVal));
-          }
+        if (batchResults[4].rows.length > 0) {
+          const medianVal = (batchResults[4].rows[0] as unknown as Record<string, unknown>)?.median_salary;
+          if (medianVal != null) setSectorMedian(Number(medianVal));
         }
 
-        setColleagues(toRows<Disclosure>(colleagueResult.rows as unknown as Array<Record<string, unknown>>));
+        setColleagues(toRows<Disclosure>(batchResults[5].rows as unknown as Array<Record<string, unknown>>));
       } catch {
-        setNotFound(true);
+        // Stats are non-critical — basic profile is already visible
       } finally {
-        setLoading(false);
+        setLoadingStats(false);
       }
     }
 
-    load();
-  }, [id]);
+    loadStats(person);
+  }, [person]);
 
   if (loading) {
     return (
@@ -421,6 +409,17 @@ function PersonDetailContent() {
 
       {/* Insights row: percentile + employer rank + sector comparison */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {loadingStats && !peerStats && !employerRank && !sectorMedian && (
+          <>
+            {[0, 1, 2].map(i => (
+              <div key={i} className="rounded-lg border border-sunshine-200 bg-white p-5 animate-pulse">
+                <div className="h-3 w-2/3 rounded bg-sunshine-100" />
+                <div className="mt-3 h-7 w-1/2 rounded bg-sunshine-100" />
+                <div className="mt-3 h-3 w-full rounded bg-sunshine-100" />
+              </div>
+            ))}
+          </>
+        )}
         {/* Peer percentile */}
         {peerStats && (
           <div className="rounded-lg border border-sunshine-200 bg-white p-5">
