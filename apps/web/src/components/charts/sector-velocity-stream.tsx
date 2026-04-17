@@ -23,16 +23,26 @@ const velocityData = [
   { year: 2025, 'School Boards': 103200, 'Hospitals': 53800, 'Universities': 48100, 'Municipalities': 37500, 'Government': 43500, 'Crown Agencies': 30200 },
 ];
 
-const SECTOR_COLORS: Record<string, string> = {
-  'School Boards': '#d97706',
-  'Hospitals': '#92400e',
-  'Universities': '#b45309',
-  'Municipalities': '#78716c',
-  'Government': '#a16207',
-  'Crown Agencies': '#65a30d',
+// Fill + stroke kept slightly different so band boundaries stay crisp
+const SECTOR_FILLS: Record<string, string> = {
+  'School Boards':  '#fbbf24', // amber   — education
+  'Hospitals':      '#f87171', // red     — health
+  'Universities':   '#60a5fa', // blue    — academia
+  'Municipalities': '#4ade80', // green   — local govt
+  'Government':     '#c084fc', // purple  — provincial
+  'Crown Agencies': '#22d3ee', // cyan    — agencies
 };
 
-const SECTOR_KEYS = Object.keys(SECTOR_COLORS);
+const SECTOR_STROKES: Record<string, string> = {
+  'School Boards':  '#d97706',
+  'Hospitals':      '#dc2626',
+  'Universities':   '#2563eb',
+  'Municipalities': '#16a34a',
+  'Government':     '#9333ea',
+  'Crown Agencies': '#0891b2',
+};
+
+const SECTOR_KEYS = Object.keys(SECTOR_FILLS);
 
 interface VelocityTooltipProps {
   active?: boolean;
@@ -96,9 +106,10 @@ export function SectorVelocityStream({ isLoading }: SectorVelocityProps) {
               type="monotone"
               dataKey={key}
               stackId="1"
-              stroke={SECTOR_COLORS[key]}
-              fill={SECTOR_COLORS[key]}
-              fillOpacity={0.6}
+              stroke={SECTOR_STROKES[key]}
+              fill={SECTOR_FILLS[key]}
+              fillOpacity={0.85}
+              strokeWidth={1.5}
             />
           ))}
         </AreaChart>
