@@ -105,6 +105,97 @@ function SalaryTooltip({ active, payload, label }: {
   );
 }
 
+// ── loading skeleton ───────────────────────────────────────────────────────────
+const SUNSHINE_FACTS = [
+  "The Sunshine List was introduced in 1996 under Premier Mike Harris to promote public sector pay transparency.",
+  "In 1996, only 4,498 Ontario employees made the list. By 2025, that number exceeded 400,000.",
+  "The $100,000 threshold has never been adjusted for inflation — in today's dollars it would be roughly $175,000.",
+  "Universities, hospitals, and school boards account for the majority of Sunshine List disclosures.",
+  "Ontario's Sunshine List is one of the most comprehensive public salary databases in Canada.",
+  "The largest single-year jump in disclosures was 2020–2021, growing by nearly 40,000 entries.",
+  "Over 3.2 million individual salary disclosures have been made across all 30 years of the list.",
+];
+
+function PersonPageSkeleton() {
+  const [factIdx, setFactIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setFactIdx(i => (i + 1) % SUNSHINE_FACTS.length);
+        setVisible(true);
+      }, 300);
+    }, 4000);
+    return () => clearInterval(cycle);
+  }, []);
+
+  return (
+    <main className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* Back link */}
+      <div className="h-4 w-28 rounded bg-sunshine-100 animate-pulse" />
+
+      {/* Name + badges */}
+      <div className="mt-6 space-y-3">
+        <div className="h-8 w-72 rounded bg-sunshine-200 animate-pulse" />
+        <div className="flex flex-wrap gap-2">
+          <div className="h-6 w-40 rounded-full bg-sunshine-100 animate-pulse" />
+          <div className="h-6 w-28 rounded-full bg-sunshine-100 animate-pulse" />
+          <div className="h-6 w-32 rounded-full bg-sunshine-100 animate-pulse" />
+        </div>
+      </div>
+
+      {/* Employer card */}
+      <div className="mt-6 rounded-lg border border-sunshine-200 bg-white p-5">
+        <div className="h-3 w-16 rounded bg-sunshine-100 animate-pulse" />
+        <div className="mt-2 h-5 w-52 rounded bg-sunshine-200 animate-pulse" />
+      </div>
+
+      {/* Stat cards */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className="rounded-lg border border-sunshine-200 bg-white p-5">
+            <div className="h-3 w-20 rounded bg-sunshine-100 animate-pulse" />
+            <div className="mt-3 h-7 w-28 rounded bg-sunshine-200 animate-pulse" />
+          </div>
+        ))}
+      </div>
+
+      {/* Insight cards */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="rounded-lg border border-sunshine-200 bg-white p-5">
+            <div className="h-3 w-36 rounded bg-sunshine-100 animate-pulse" />
+            <div className="mt-2 h-8 w-24 rounded bg-sunshine-200 animate-pulse" />
+            <div className="mt-3 h-2.5 w-full rounded-full bg-sunshine-100 animate-pulse" />
+            <div className="mt-2 h-3 w-44 rounded bg-sunshine-100 animate-pulse" />
+          </div>
+        ))}
+      </div>
+
+      {/* Chart placeholder */}
+      <div className="mt-6 rounded-lg border border-sunshine-200 bg-white p-6">
+        <div className="h-4 w-32 rounded bg-sunshine-200 animate-pulse" />
+        <div className="mt-4 h-56 w-full rounded bg-sunshine-50 animate-pulse" />
+      </div>
+
+      {/* Rotating fun fact */}
+      <div className="mt-6 rounded-lg border border-sunshine-200 bg-sunshine-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-sunshine-500 mb-2">
+          ☀ Did you know?
+        </p>
+        <p
+          className="text-sm text-sunshine-700 leading-relaxed transition-opacity duration-300"
+          style={{ opacity: visible ? 1 : 0 }}
+        >
+          {SUNSHINE_FACTS[factIdx]}
+        </p>
+      </div>
+    </main>
+  );
+}
+
 // ── main content ───────────────────────────────────────────────────────────────
 function PersonDetailContent() {
   const searchParams = useSearchParams();
@@ -252,13 +343,7 @@ function PersonDetailContent() {
   }, [id]);
 
   if (loading) {
-    return (
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-sunshine-300 border-t-sunshine-600" />
-        </div>
-      </main>
-    );
+    return <PersonPageSkeleton />;
   }
 
   if (notFound || !person) {
@@ -661,15 +746,7 @@ function PersonDetailContent() {
 
 export default function PersonPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex justify-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-sunshine-300 border-t-sunshine-600" />
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<PersonPageSkeleton />}>
       <PersonDetailContent />
     </Suspense>
   );
