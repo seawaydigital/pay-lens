@@ -35,6 +35,22 @@ jobs:
           NEXT_PUBLIC_TURSO_AUTH_TOKEN: ${{ secrets.NEXT_PUBLIC_TURSO_AUTH_TOKEN }}
         run: pnpm run build --filter=web
 
+      - name: Ensure covering indexes on Turso
+        env:
+          TURSO_URL: ${{ secrets.NEXT_PUBLIC_TURSO_DATABASE_URL }}
+          TURSO_TOKEN: ${{ secrets.NEXT_PUBLIC_TURSO_AUTH_TOKEN }}
+        working-directory: apps/web
+        run: |
+          cat > ensure-indexes.mjs << 'EOF'
+          import { createClient } from '@libsql/client';
+          const db = createClient({ url: process.env.TURSO_URL, authToken: process.env.TURSO_TOKEN });
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_disc_title_year_sal ON disclosures(job_title, year, salary_paid)');
+          console.log('idx_disc_title_year_sal: OK');
+          db.close();
+          EOF
+          node ensure-indexes.mjs
+          rm ensure-indexes.mjs
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
