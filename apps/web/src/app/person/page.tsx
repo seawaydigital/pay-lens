@@ -33,6 +33,42 @@ import { turso } from '@/lib/turso';
 import type { Disclosure } from '@/lib/turso';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
+/**
+ * Approximates a salary's percentile within a group using precomputed breakpoints.
+ * Linear interpolation between adjacent breakpoints; clamped to [1, 99].
+ * Accepts a row from job_year_stats/employer_year_stats that may have missing
+ * percentile columns (degrades to 50 when none are populated yet).
+ */
+function estimatePercentile(
+  salary: number,
+  row: Record<string, unknown> | undefined,
+): number {
+  if (!row) return 50;
+  const p25 = row.p25 == null ? null : Number(row.p25);
+  const p50 = row.p50 == null ? null : Number(row.p50);
+  const p75 = row.p75 == null ? null : Number(row.p75);
+  const p90 = row.p90 == null ? null : Number(row.p90);
+  const p95 = row.p95 == null ? null : Number(row.p95);
+  if (p25 == null || p50 == null || p75 == null || p90 == null || p95 == null) return 50;
+
+  const tiers: Array<[number, number, number, number]> = [
+    // [low_pct, high_pct, low_salary, high_salary]
+    [0, 25, 0, p25],
+    [25, 50, p25, p50],
+    [50, 75, p50, p75],
+    [75, 90, p75, p90],
+    [90, 95, p90, p95],
+  ];
+  for (const [lp, hp, ls, hs] of tiers) {
+    if (salary <= hs && hs > ls) {
+      const frac = (salary - ls) / (hs - ls);
+      return Math.max(1, Math.min(99, Math.round(lp + (hp - lp) * frac)));
+    }
+  }
+  // Above p95
+  return 97;
+}
+
 function StatCard({
   icon: Icon,
   label,
@@ -219,7 +255,9 @@ function PersonDetailContent() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Single HTTP round trip: primary record + all secondary queries in one batch via subqueries
+  // Two round trips:
+  //   1) PK lookup on `disclosures` for the primary record (cheap, needed to unblock UI)
+  //   2) Batched follow-ups using literal values — no correlated subqueries, no repeated PK lookups
   useEffect(() => {
     if (!id) { setLoading(false); setNotFound(true); return; }
 
@@ -236,101 +274,107 @@ function PersonDetailContent() {
 
     async function load() {
       try {
-        const [r0, r1, r2, r3, r4, r5, r6] = await turso.batch([
-          // 0. Primary record
-          { sql: 'SELECT * FROM disclosures WHERE id = ?', args: [id!] },
+        // Round trip 1: primary record
+        const primaryRes = await turso.execute({
+          sql: 'SELECT * FROM disclosures WHERE id = ?',
+          args: [id!],
+        });
+        if (primaryRes.rows.length === 0) {
+          setNotFound(true); setLoading(false); setLoadingStats(false);
+          return;
+        }
 
-          // 1. Salary history — scoped to same employer if employer_id is set
+        const disc = toRow<Disclosure>(primaryRes.rows[0] as unknown as Record<string, unknown>);
+        setPerson(disc);
+        setLoading(false);
+
+        // Round trip 2: 5 follow-up queries in one batch with literal values.
+        // All aggregate lookups are now PK reads against precomputed rollups
+        // (job_year_stats, employer_year_stats) — no range scans remain.
+        const [r1, r2, r3Stats, r4Stats, r5] = await turso.batch([
+          // 1. Salary history scoped to same employer (falls back to name-only when employer_id is null)
+          disc.employer_id
+            ? {
+                sql: `SELECT * FROM disclosures
+                      WHERE first_name = ? AND last_name = ? AND employer_id = ?
+                      ORDER BY year ASC`,
+                args: [disc.first_name, disc.last_name, disc.employer_id],
+              }
+            : {
+                sql: `SELECT * FROM disclosures
+                      WHERE first_name = ? AND last_name = ?
+                      ORDER BY year ASC`,
+                args: [disc.first_name, disc.last_name],
+              },
+
+          // 2. Top peers with same (job_title, year) — uses idx_disc_title_year_sal
           {
             sql: `SELECT * FROM disclosures
-                  WHERE first_name = (SELECT first_name FROM disclosures WHERE id = ?)
-                    AND last_name  = (SELECT last_name  FROM disclosures WHERE id = ?)
-                    AND ((SELECT employer_id FROM disclosures WHERE id = ?) IS NULL
-                         OR employer_id = (SELECT employer_id FROM disclosures WHERE id = ?))
-                  ORDER BY year ASC`,
-            args: [id!, id!, id!, id!],
-          },
-
-          // 2. Top peers with same job title in same year
-          {
-            sql: `SELECT * FROM disclosures
-                  WHERE year      = (SELECT year      FROM disclosures WHERE id = ?)
-                    AND job_title = (SELECT job_title FROM disclosures WHERE id = ?)
+                  WHERE year = ? AND job_title = ?
                   ORDER BY salary_paid DESC LIMIT 10`,
-            args: [id!, id!],
+            args: [disc.year, disc.job_title],
           },
 
-          // 3. Peer percentile
+          // 3. Peer stats — PK lookup (count + percentile breakpoints)
           {
-            sql: `SELECT COUNT(*) as total,
-                    SUM(CASE WHEN salary_paid <= (SELECT salary_paid FROM disclosures WHERE id = ?) THEN 1 ELSE 0 END) as below
-                  FROM disclosures
-                  WHERE year      = (SELECT year      FROM disclosures WHERE id = ?)
-                    AND job_title = (SELECT job_title FROM disclosures WHERE id = ?)`,
-            args: [id!, id!, id!],
+            sql: `SELECT count, p25, p50, p75, p90, p95
+                  FROM job_year_stats WHERE year = ? AND job_title = ?`,
+            args: [disc.year, disc.job_title],
           },
 
-          // 4. Employer rank
-          {
-            sql: `SELECT COUNT(*) as total,
-                    SUM(CASE WHEN salary_paid > (SELECT salary_paid FROM disclosures WHERE id = ?) THEN 1 ELSE 0 END) as above
-                  FROM disclosures
-                  WHERE year        = (SELECT year        FROM disclosures WHERE id = ?)
-                    AND employer_id = (SELECT employer_id FROM disclosures WHERE id = ?)`,
-            args: [id!, id!, id!],
-          },
+          // 4. Employer stats — PK lookup (count + percentile breakpoints + pre-rendered top earners)
+          disc.employer_id
+            ? {
+                sql: `SELECT count, p25, p50, p75, p90, p95, top_earners_json
+                      FROM employer_year_stats WHERE year = ? AND employer_id = ?`,
+                args: [disc.year, disc.employer_id],
+              }
+            : { sql: 'SELECT NULL AS count WHERE 0', args: [] },
 
           // 5. Sector median
           {
-            sql: `SELECT median_salary FROM sectors
-                  WHERE name = (SELECT sector FROM disclosures WHERE id = ?) LIMIT 1`,
-            args: [id!],
-          },
-
-          // 6. Top colleagues at same employer (excluding self)
-          {
-            sql: `SELECT * FROM disclosures
-                  WHERE year        = (SELECT year        FROM disclosures WHERE id = ?)
-                    AND employer_id = (SELECT employer_id FROM disclosures WHERE id = ?)
-                    AND id != ?
-                  ORDER BY salary_paid DESC LIMIT 5`,
-            args: [id!, id!, id!],
+            sql: `SELECT median_salary FROM sectors WHERE name = ? LIMIT 1`,
+            args: [disc.sector],
           },
         ], 'read');
-
-        if (r0.rows.length === 0) { setNotFound(true); setLoading(false); setLoadingStats(false); return; }
-
-        const disc = toRow<Disclosure>(r0.rows[0] as unknown as Record<string, unknown>);
-        setPerson(disc);
-        setLoading(false);
 
         setHistory(toRows<Disclosure>(r1.rows as unknown as Array<Record<string, unknown>>));
         setPeers(toRows<Disclosure>(r2.rows as unknown as Array<Record<string, unknown>>));
 
-        const peerRow = r3.rows[0] as unknown as Record<string, unknown>;
-        const totalPeers = Number(peerRow?.total ?? 0);
-        const peersBelow = Number(peerRow?.below ?? 0);
+        const peerStatsRow = r3Stats.rows[0] as Record<string, unknown> | undefined;
+        const totalPeers = Number(peerStatsRow?.count ?? 0);
         if (totalPeers > 1) {
+          const pct = estimatePercentile(disc.salary_paid, peerStatsRow);
           setPeerStats({
             totalPeers,
-            peersBelow,
-            percentile: Math.max(1, Math.round((peersBelow / totalPeers) * 100)),
+            peersBelow: Math.round((pct / 100) * totalPeers),
+            percentile: pct,
           });
         }
 
-        const rankRow = r4.rows[0] as unknown as Record<string, unknown>;
-        const empTotal = Number(rankRow?.total ?? 0);
-        const empAbove = Number(rankRow?.above ?? 0);
+        const empStatsRow = r4Stats.rows[0] as Record<string, unknown> | undefined;
+        const empTotal = Number(empStatsRow?.count ?? 0);
         if (empTotal > 0) {
-          setEmployerRank({ rank: empAbove + 1, total: empTotal });
+          const empPct = estimatePercentile(disc.salary_paid, empStatsRow);
+          const approxRank = Math.max(1, Math.round(((100 - empPct) / 100) * empTotal));
+          setEmployerRank({ rank: approxRank, total: empTotal });
+        }
+
+        // Colleagues: parse precomputed JSON and drop the viewer themselves if present
+        const topEarnersRaw = empStatsRow?.top_earners_json;
+        if (typeof topEarnersRaw === 'string' && topEarnersRaw.length > 0) {
+          try {
+            const parsed = JSON.parse(topEarnersRaw) as Disclosure[];
+            setColleagues(parsed.filter((c) => c.id !== disc.id).slice(0, 5));
+          } catch {
+            setColleagues([]);
+          }
         }
 
         if (r5.rows.length > 0) {
-          const medianVal = (r5.rows[0] as unknown as Record<string, unknown>)?.median_salary;
+          const medianVal = (r5.rows[0] as Record<string, unknown>)?.median_salary;
           if (medianVal != null) setSectorMedian(Number(medianVal));
         }
-
-        setColleagues(toRows<Disclosure>(r6.rows as unknown as Array<Record<string, unknown>>));
       } catch {
         setNotFound(true);
         setLoading(false);

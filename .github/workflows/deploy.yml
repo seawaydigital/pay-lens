@@ -46,6 +46,8 @@ jobs:
           const db = createClient({ url: process.env.TURSO_URL, authToken: process.env.TURSO_TOKEN });
           await db.execute('CREATE INDEX IF NOT EXISTS idx_disc_title_year_sal ON disclosures(job_title, year, salary_paid)');
           console.log('idx_disc_title_year_sal: OK');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_disc_emp_year_sal ON disclosures(employer_id, year, salary_paid)');
+          console.log('idx_disc_emp_year_sal: OK');
           db.close();
           EOF
           node ensure-indexes.mjs
